@@ -154,6 +154,9 @@ class AuthSystem {
                 <div class="app-main">
                     <header class="app-header">
                         <div class="header-left">
+                            <button class="app-menu-toggle" onclick="toggleMobileSidebar()">
+                                <i class="fas fa-bars"></i>
+                            </button>
                             <h2 id="pageTitle">Overview</h2>
                         </div>
                         <div class="header-right">

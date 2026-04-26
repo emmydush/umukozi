@@ -1522,7 +1522,7 @@ body {
         width: 260px;
     }
 
-    .dashboard-sidebar.mobile-open {
+    .dashboard-sidebar.active {
         left: 0;
     }
 
@@ -1919,20 +1919,72 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-@media (max-width: 768px) {
+/* Mobile Responsive Adjustments for NEW App-style */
+.app-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: #1e293b;
+    cursor: pointer;
+    margin-right: 1rem;
+}
+
+@media (max-width: 992px) {
     .app-sidebar {
         position: fixed;
-        left: -80px;
+        left: -100px;
         height: 100vh;
+        z-index: 1001;
+        width: 80px; /* Force small width initially */
     }
     
-    .app-sidebar.mobile-active {
+    .app-sidebar:hover {
+        width: 80px; /* Don't expand on hover on mobile tablets */
+    }
+
+    .app-sidebar.active {
         left: 0;
+        width: 240px; /* Expand when active */
+    }
+    
+    .app-sidebar.active .nav-item span {
+        opacity: 1;
+    }
+
+    .app-menu-toggle {
+        display: block;
     }
     
     .search-box-modern {
         display: none;
     }
+    
+    .app-header {
+        padding: 0 1rem;
+    }
+}
+
+.mobile-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+}
+
+.mobile-sidebar-overlay.active {
+    display: block;
+    animation: fadeInOverlay 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .user-info {

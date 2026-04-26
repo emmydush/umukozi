@@ -79,6 +79,17 @@ function toggleMobileMenu() {
     }
 }
 
+// Unified Dashboard Sidebar Toggle
+window.toggleMobileSidebar = function() {
+    const sidebar = document.querySelector('.app-sidebar') || document.querySelector('.dashboard-sidebar');
+    const overlay = document.querySelector('.mobile-sidebar-overlay');
+    
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+        if (overlay) overlay.classList.toggle('active');
+    }
+}
+
 // Check authentication state
 function checkAuthState() {
     // Don't interfere with authSystem - let it handle dashboard display
