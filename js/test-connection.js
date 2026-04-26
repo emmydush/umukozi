@@ -4,7 +4,7 @@ async function testBackendConnection() {
     
     try {
         // Test basic health endpoint
-        const response = await fetch('http://localhost:3000/api/health');
+        const response = await fetch('http://localhost:3001/api/health');
         console.log('Health check response:', response.status, response.statusText);
         
         if (response.ok) {
@@ -26,7 +26,7 @@ async function testCORS() {
     console.log('Testing CORS...');
     
     try {
-        const response = await fetch('http://localhost:3000/api/health', {
+        const response = await fetch('http://localhost:3001/api/health', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -54,6 +54,6 @@ window.addEventListener('load', async () => {
     console.log('Connection test results:', { isConnected, corsWorks });
     
     if (!isConnected) {
-        alert('Backend server is not responding. Please ensure the backend is running on port 3000.');
+        alert('Backend server is not responding. Please ensure the backend is running on port 3001.');
     }
 });

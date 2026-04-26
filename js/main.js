@@ -395,11 +395,14 @@ window.showDashboardSection = async function(section) {
                 break;
             case 'applications':
                 dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading applications...</div>';
-                dashboardContent.innerHTML = authSystem.getApplicationsSection();
+                dashboardContent.innerHTML = await authSystem.getApplicationsSection();
                 break;
             case 'stats':
                 dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Calculating stats...</div>';
                 dashboardContent.innerHTML = authSystem.getWorkerStatsSection();
+                break;
+            case 'settings':
+                dashboardContent.innerHTML = getSettingsSection();
                 break;
         }
     } else {
@@ -445,51 +448,23 @@ window.showDashboardSection = async function(section) {
                 dashboardContent.innerHTML = getPostJobSection();
                 break;
             case 'applications':
-                dashboardContent.innerHTML = getEmployerApplicationsSection();
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Reviewing applications...</div>';
+                dashboardContent.innerHTML = await getEmployerApplicationsSection();
                 break;
             case 'manage':
-                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading jobs…</div>';
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading jobs...</div>';
                 dashboardContent.innerHTML = await getManageJobsSection();
+                break;
+            case 'settings':
+                dashboardContent.innerHTML = getSettingsSection();
                 break;
         }
     }
 }
 
 
-// Additional dashboard sections (placeholders for now)
-function getAvailableJobsSection() {
-    return `
-        <div class="jobs-section">
-            <h2>Available Jobs</h2>
-            <div class="job-listings">
-                <div class="job-card">
-                    <h3>Housekeeper Needed</h3>
-                    <p><i class="fas fa-map-marker-alt"></i> Kiyovu, Kigali</p>
-                    <p><i class="fas fa-clock"></i> Full Time</p>
-                    <p><i class="fas fa-money-bill"></i> RWF 60,000/month</p>
-                    <button class="btn btn-primary">Apply Now</button>
-                </div>
-                
-                <div class="job-card">
-                    <h3>Nanny/Babysitter</h3>
-                    <p><i class="fas fa-map-marker-alt"></i> Nyarutarama, Kigali</p>
-                    <p><i class="fas fa-clock"></i> Part Time</p>
-                    <p><i class="fas fa-money-bill"></i> RWF 40,000/month</p>
-                    <button class="btn btn-primary">Apply Now</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
+// Additional dashboard sections are now implemented as methods in AuthSystem (js/auth.js)
 
-function getApplicationsSection() {
-    return `
-        <div class="applications-section">
-            <h2>My Applications</h2>
-            <p>You haven't applied to any jobs yet.</p>
-        </div>
-    `;
-}
 
 function getPostJobSection() {
     return `
@@ -501,7 +476,7 @@ function getPostJobSection() {
             
             <div class="pj-container">
                 <form id="postJobForm" onsubmit="postJob(event)" class="pj-form">
-                    <div class="pj-grid">
+                    <div class="pj-form-row">
                         <div class="form-group">
                             <label for="jobTitle">Job Title</label>
                             <div class="pj-input-wrap">
@@ -517,7 +492,9 @@ function getPostJobSection() {
                                 <input type="text" id="jobLocation" class="pj-input" placeholder="e.g., Kiyovu, Kigali" required>
                             </div>
                         </div>
-                        
+                    </div>
+                    
+                    <div class="pj-form-row">
                         <div class="form-group">
                             <label for="jobType">Job Type</label>
                             <div class="pj-input-wrap">
@@ -551,6 +528,14 @@ function getPostJobSection() {
                         </div>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="jobRequirements">Additional Requirements (Optional)</label>
+                        <div class="pj-input-wrap pj-input-wrap--textarea">
+                            <i class="fas fa-list-check pj-icon"></i>
+                            <textarea id="jobRequirements" class="pj-textarea" placeholder="Any additional requirements, qualifications, or preferences..."></textarea>
+                        </div>
+                    </div>
+                    
                     <div class="pj-actions">
                         <button type="submit" class="btn btn-primary pj-submit-btn">
                             <i class="fas fa-paper-plane"></i> Post Job Listing
@@ -565,6 +550,30 @@ function getPostJobSection() {
 async function postJob(event) {
     event.preventDefault();
     
+    // Check authentication first
+    if (!authSystem || !authSystem.currentUser) {
+        const errorMsg = 'You must be logged in to post a job. Please log in as an employer.';
+        console.error('Job creation failed: User not authenticated');
+        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+            authSystem.showAlert(errorMsg, 'error');
+        } else {
+            alert(errorMsg);
+        }
+        return;
+    }
+    
+    // Check if user is employer
+    if (authSystem.currentUser.userType !== 'employer') {
+        const errorMsg = 'Only employers can post jobs. You are logged in as a worker.';
+        console.error('Job creation failed: User is not employer, type:', authSystem.currentUser.userType);
+        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+            authSystem.showAlert(errorMsg, 'error');
+        } else {
+            alert(errorMsg);
+        }
+        return;
+    }
+    
     const formElement = event.target;
     
     const title = document.getElementById('jobTitle').value.trim();
@@ -572,24 +581,63 @@ async function postJob(event) {
     const job_type = document.getElementById('jobType').value;
     const description = document.getElementById('jobDescription').value.trim();
     const salary = document.getElementById('jobSalary').value;
+    const requirements = document.getElementById('jobRequirements').value.trim();
     
-    // Explicit validation as per user requirement
-    if (!title || !location || !job_type || !description) {
-        authSystem.showAlert('Title, description, location, and job type are required.', 'error');
+    console.log('=== FRONTEND JOB CREATION ===');
+    console.log('User:', authSystem.currentUser);
+    console.log('Job data:', { title, location, job_type, description, salary, requirements });
+    
+    // Enhanced validation
+    const missingFields = [];
+    if (!title) missingFields.push('title');
+    if (!location) missingFields.push('location');
+    if (!job_type) missingFields.push('job type');
+    if (!description) missingFields.push('description');
+    
+    if (missingFields.length > 0) {
+        const errorMsg = `Please fill in all required fields: ${missingFields.join(', ')}`;
+        console.error('Job creation failed: Missing fields:', missingFields);
+        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+            authSystem.showAlert(errorMsg, 'error');
+        } else {
+            alert(errorMsg);
+        }
+        return;
+    }
+    
+    // Validate job type
+    const validJobTypes = ['full-time', 'part-time', 'weekends', 'flexible', 'live-in', 'go-home'];
+    if (!validJobTypes.includes(job_type)) {
+        const errorMsg = `Invalid job type. Please select from: ${validJobTypes.join(', ')}`;
+        console.error('Job creation failed: Invalid job type:', job_type);
+        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+            authSystem.showAlert(errorMsg, 'error');
+        } else {
+            alert(errorMsg);
+        }
         return;
     }
     
     const jobData = {
         title,
         location,
-        job_type,
-        salary_range_min: salary,
+        jobType: job_type,
         description,
-        employer_name: authSystem.currentUser?.name || 'Anonymous Employer'
+        salaryRangeMin: salary || null,
+        requirements: requirements || null
     };
     
+    console.log('Sending job data to API:', jobData);
+    
     try {
+        // Show loading state
+        const submitBtn = formElement.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting Job...';
+        submitBtn.disabled = true;
+        
         const response = await apiService.createJob(jobData);
+        console.log('Job creation successful:', response);
         
         // Show success message
         if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
@@ -603,12 +651,35 @@ async function postJob(event) {
         showDashboardSection('manage');
         
     } catch (error) {
-        // Show error message
-        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
-            authSystem.showAlert(error.message, 'error');
-        } else {
-            alert('Error posting job: ' + error.message);
+        console.error('=== FRONTEND JOB CREATION FAILED ===');
+        console.error('Error:', error);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Show detailed error message
+        let errorMsg = error.message || 'Failed to create job';
+        
+        // Add specific guidance for common errors
+        if (errorMsg.includes('Only employers can post jobs')) {
+            errorMsg = 'You must be logged in as an employer to post jobs. Current account type: ' + (authSystem.currentUser?.userType || 'unknown');
+        } else if (errorMsg.includes('token') || errorMsg.includes('authentication')) {
+            errorMsg = 'Authentication error. Please log out and log back in as an employer.';
+        } else if (errorMsg.includes('Missing required fields')) {
+            errorMsg = 'Please fill in all required job details: title, description, location, and job type.';
+        } else if (errorMsg.includes('Invalid job type')) {
+            errorMsg = 'Please select a valid job type from the dropdown menu.';
         }
+        
+        if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+            authSystem.showAlert(errorMsg, 'error');
+        } else {
+            alert('Error posting job: ' + errorMsg);
+        }
+    } finally {
+        // Reset button state
+        const submitBtn = formElement.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
     }
 }
 
@@ -686,66 +757,94 @@ async function getManageJobsSection() {
     }
 }
 
-function getEmployerApplicationsSection() {
-    return `
-        <div class="apps-page">
+async function getEmployerApplicationsSection() {
+    try {
+        const jobsResponse = await apiService.getEmployerJobs();
+        const jobs = jobsResponse.jobs || [];
+        
+        let allApplications = [];
+        for (const job of jobs) {
+            const appsResponse = await apiService.getJobApplications(job.id);
+            const apps = (appsResponse.applications || []).map(a => ({...a, job_title: job.title}));
+            allApplications = [...allApplications, ...apps];
+        }
 
-            <!-- Page Header -->
-            <div class="apps-header">
-                <div>
-                    <h2><i class="fas fa-inbox"></i> Job Applications</h2>
-                    <p class="apps-sub">Review and manage applications from workers for your job postings</p>
+        const stats = {
+            total: allApplications.length,
+            pending: allApplications.filter(a => a.status === 'pending').length,
+            accepted: allApplications.filter(a => a.status === 'accepted' || a.status === 'reviewed').length,
+            rejected: allApplications.filter(a => a.status === 'rejected').length
+        };
+
+        const appsHTML = allApplications.length > 0 ? `
+            <div class="apps-list-modern">
+                ${allApplications.map(app => `
+                    <div class="app-item-modern employer-view">
+                        <div class="aim-worker">
+                            <div class="aim-avatar-wrap">
+                                <img src="${authSystem.getImageUrl(app.profile_photo)}" class="aim-avatar">
+                            </div>
+                            <div class="aim-details">
+                                <h3>${app.worker_name}</h3>
+                                <p class="aim-job-ref"><i class="fas fa-briefcase"></i> Applied for: <strong>${app.job_title}</strong></p>
+                                <p><i class="fas fa-envelope"></i> ${app.worker_email} | <i class="fas fa-phone"></i> ${app.worker_phone}</p>
+                                <div class="aim-skills">
+                                    ${(app.skills || '').split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="aim-actions">
+                            <span class="app-status-badge status-${app.status}">${app.status.toUpperCase()}</span>
+                            <div class="aim-btns">
+                                <button class="btn btn-success btn-sm" onclick="updateAppStatus('${app.id}', 'accepted')">Accept</button>
+                                <button class="btn btn-danger btn-sm" onclick="updateAppStatus('${app.id}', 'rejected')">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : `
+            <div class="apps-empty">
+                <div class="apps-empty-art"><i class="fas fa-inbox"></i></div>
+                <h3>Your Inbox is Empty</h3>
+                <p>No applications have been received yet. Post a job to start seeing workers.</p>
+                <button class="btn btn-primary" onclick="showDashboardSection('post')">Post a Job</button>
+            </div>
+        `;
+
+        return `
+            <div class="apps-page">
+                <div class="apps-header">
+                    <div>
+                        <h2><i class="fas fa-inbox"></i> Applicant Inbox</h2>
+                        <p class="apps-sub">Review candidates across all your job postings</p>
+                    </div>
+                </div>
+
+                <div class="apps-stats">
+                    <div class="apps-stat-card"><span class="apps-stat-num">${stats.total}</span><span class="apps-stat-label">Applicants</span></div>
+                    <div class="apps-stat-card"><span class="apps-stat-num">${stats.pending}</span><span class="apps-stat-label">Pending</span></div>
+                    <div class="apps-stat-card"><span class="apps-stat-num">${stats.accepted}</span><span class="apps-stat-label">Shortlisted</span></div>
+                </div>
+
+                <div class="apps-container">
+                    ${appsHTML}
                 </div>
             </div>
+        `;
+    } catch (error) {
+        return `<div class="alert alert-error">Failed to load applications: ${error.message}</div>`;
+    }
+}
 
-            <!-- Stat Cards -->
-            <div class="apps-stats">
-                <div class="apps-stat-card apps-stat-total">
-                    <div class="apps-stat-icon"><i class="fas fa-layer-group"></i></div>
-                    <div class="apps-stat-body">
-                        <span class="apps-stat-num">0</span>
-                        <span class="apps-stat-label">Total Received</span>
-                    </div>
-                </div>
-                <div class="apps-stat-card apps-stat-pending">
-                    <div class="apps-stat-icon"><i class="fas fa-hourglass-half"></i></div>
-                    <div class="apps-stat-body">
-                        <span class="apps-stat-num">0</span>
-                        <span class="apps-stat-label">Awaiting Review</span>
-                    </div>
-                </div>
-                <div class="apps-stat-card apps-stat-accepted">
-                    <div class="apps-stat-icon"><i class="fas fa-user-check"></i></div>
-                    <div class="apps-stat-body">
-                        <span class="apps-stat-num">0</span>
-                        <span class="apps-stat-label">Shortlisted</span>
-                    </div>
-                </div>
-                <div class="apps-stat-card apps-stat-rejected">
-                    <div class="apps-stat-icon"><i class="fas fa-user-times"></i></div>
-                    <div class="apps-stat-body">
-                        <span class="apps-stat-num">0</span>
-                        <span class="apps-stat-label">Declined</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div class="apps-list">
-                <div class="apps-empty">
-                    <div class="apps-empty-art">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <h3>Your Inbox is Empty</h3>
-                    <p>No applications have been received yet.<br>Post a new job or activate an existing listing to start receiving applications from workers.</p>
-                    <button class="btn btn-primary" onclick="showDashboardSection('post')">
-                        <i class="fas fa-plus-circle"></i> Post a New Job
-                    </button>
-                </div>
-            </div>
-
-        </div>
-    `;
+async function updateAppStatus(id, status) {
+    try {
+        await apiService.updateApplicationStatus(id, status);
+        authSystem.showAlert(`Application ${status} successfully!`, 'success');
+        showDashboardSection('applications');
+    } catch (error) {
+        authSystem.showAlert(error.message, 'error');
+    }
 }
 
 // Job management functions
@@ -826,11 +925,10 @@ async function handleEditJob(event, jobId) {
     const jobData = {
         title,
         location,
-        job_type,
-        salary_range_min: salary,
+        jobType: job_type,
+        salaryRangeMin: salary,
         description,
-        requirements,
-        is_active: true
+        requirements
     };
     
     try {
@@ -1010,3 +1108,100 @@ function showNotification(message) {
 const styleSheet = document.createElement('style');
 styleSheet.textContent = mobileCSS;
 document.head.appendChild(styleSheet);
+
+
+// Settings Section HTML
+function getSettingsSection() {
+    return `
+        <div class="settings-container fade-in">
+            <div class="settings-card">
+                <div class="settings-header">
+                    <i class="fas fa-shield-alt"></i>
+                    <div>
+                        <h3>Security Settings</h3>
+                        <p>Manage your account password and security preferences</p>
+                    </div>
+                </div>
+
+                <form id="changePasswordForm" onsubmit="handlePasswordChange(event)" class="settings-form">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <div class="settings-input-wrap">
+                            <i class="fas fa-lock settings-icon"></i>
+                            <input type="password" id="currentPassword" class="settings-input" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <div class="settings-input-wrap">
+                            <i class="fas fa-key settings-icon"></i>
+                            <input type="password" id="newPassword" class="settings-input" placeholder="Min. 8 characters" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <div class="settings-input-wrap">
+                            <i class="fas fa-check-double settings-icon"></i>
+                            <input type="password" id="confirmPassword" class="settings-input" placeholder="Confirm new password" required>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="settings-card">
+                <div class="settings-header">
+                    <i class="fas fa-bell"></i>
+                    <div>
+                        <h3>Notifications</h3>
+                        <p>How you receive updates and messages</p>
+                    </div>
+                </div>
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <span>Email Notifications</span>
+                        <div class="toggle-switch active"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <span>SMS Alerts for new jobs</span>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Password Change Handler
+async function handlePasswordChange(event) {
+    event.preventDefault();
+    
+    const current = document.getElementById('currentPassword').value;
+    const newPass = document.getElementById('newPassword').value;
+    const confirm = document.getElementById('confirmPassword').value;
+    
+    if (newPass !== confirm) {
+        authSystem.showAlert('New passwords do not match!', 'error');
+        return;
+    }
+    
+    if (newPass.length < 8) {
+        authSystem.showAlert('Password must be at least 8 characters long.', 'error');
+        return;
+    }
+    
+    try {
+        // In a real app: await apiService.changePassword({ current, newPass });
+        authSystem.showAlert('Password updated successfully!', 'success');
+        event.target.reset();
+    } catch (error) {
+        authSystem.showAlert(error.message, 'error');
+    }
+}

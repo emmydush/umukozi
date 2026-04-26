@@ -6,10 +6,59 @@ class AuthSystem {
     }
 
     // Global helper function for image URLs
-    getImageUrl(photoUrl, fallbackUrl = null) {
-        if (!photoUrl) return fallbackUrl || 'https://picsum.photos/seed/worker/100/100.jpg';
+    getImageUrl(photoUrl, fallbackUrl = 'images/default-avatar.png') {
+        if (!photoUrl) return fallbackUrl;
         if (photoUrl.startsWith('http')) return photoUrl;
-        return `http://localhost:3000${photoUrl}`;
+        return `http://localhost:3001${photoUrl}`;
+    }
+
+    // Worker status helper function
+    getWorkerStatus(worker) {
+        // Default logic - can be enhanced with actual data from backend
+        const hasActiveJobs = worker.active_jobs && worker.active_jobs.length > 0;
+        const isCurrentlyHired = worker.current_employer_id && worker.current_employer_id !== null;
+        const isAvailable = worker.availability === 'available' || worker.is_available === true;
+        
+        if (isCurrentlyHired) {
+            return {
+                status: 'hired',
+                label: 'Hired',
+                icon: 'fas fa-briefcase',
+                color: '#1d4ed8'
+            };
+        } else if (hasActiveJobs) {
+            return {
+                status: 'unavailable',
+                label: 'Unavailable',
+                icon: 'fas fa-clock',
+                color: '#dc2626'
+            };
+        } else if (isAvailable) {
+            return {
+                status: 'available',
+                label: 'Available',
+                icon: 'fas fa-check-circle',
+                color: '#166534'
+            };
+        } else {
+            return {
+                status: 'unhired',
+                label: 'Unhired',
+                icon: 'fas fa-user-clock',
+                color: '#d97706'
+            };
+        }
+    }
+
+    // Generate status badge HTML
+    generateStatusBadge(worker) {
+        const statusInfo = this.getWorkerStatus(worker);
+        return `
+            <div class="worker-status ${statusInfo.status}">
+                <i class="${statusInfo.icon}"></i>
+                ${statusInfo.label}
+            </div>
+        `;
     }
 
     async init() {
@@ -56,20 +105,31 @@ class AuthSystem {
 
     async login(email, password) {
         try {
-            const response = await apiService.login(email, password);
+            console.log('=== AUTH LOGIN ===');
+            console.log('Attempting login for:', email);
             
+            const response = await apiService.login(email, password);
+            console.log('Login response:', response);
+            
+            // Token is already stored in localStorage by apiService.login
             this.currentUser = response.user;
+            
+            console.log('Login successful, user:', this.currentUser);
+            console.log('Token stored:', localStorage.getItem('authToken') ? 'Yes' : 'No');
             
             return { success: true, message: response.message };
         } catch (error) {
+            console.error('Login failed:', error);
             return { success: false, message: error.message };
         }
     }
 
     logout() {
-        apiService.logout();
-        this.currentUser = null;
-        this.showHome();
+        if (confirm('Are you sure you want to log out of Umukozi?')) {
+            apiService.logout();
+            this.currentUser = null;
+            this.showHome();
+        }
     }
 
     showHome() {
@@ -140,7 +200,7 @@ class AuthSystem {
                     </div>
 
                     <div class="sidebar-bottom">
-                         <button class="nav-item" onclick="showDashboardSection('profile')" title="Settings">
+                         <button class="nav-item" onclick="showDashboardSection('settings')" title="Settings">
                             <i class="fas fa-cog"></i>
                             <span>Settings</span>
                         </button>
@@ -257,6 +317,9 @@ class AuthSystem {
                         <button onclick="showDashboardSection('applications')">
                             <i class="fas fa-envelope-open-text"></i> Applications
                         </button>
+                        <button onclick="showDashboardSection('settings')">
+                            <i class="fas fa-cog"></i> Account Settings
+                        </button>
                         <button class="logout-btn" onclick="authSystem.logout()">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </button>
@@ -290,10 +353,17 @@ class AuthSystem {
                             <input type="text" id="nationalId" name="nationalId" required>
                         </div>
                         
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="profilePhoto">Profile Photo</label>
-                            <input type="file" id="profilePhoto" name="profilePhoto" accept="image/*" onchange="previewImage(event)">
+                            <input type="file" id="profilePhoto" name="profilePhoto" accept="image/*" onchange="previewImage(event, 'imagePreview')">
                             <div id="imagePreview" style="margin-top: 10px;"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="idPhoto">National ID Photo (Essential for Verification)</label>
+                            <input type="file" id="idPhoto" name="idPhoto" accept="image/*" onchange="previewImage(event, 'idImagePreview')" required>
+                            <div id="idImagePreview" style="margin-top: 10px;"></div>
                         </div>
                     </div>
                     
@@ -312,7 +382,7 @@ class AuthSystem {
                                 <option value="weekends">Weekends Only</option>
                                 <option value="flexible">Flexible</option>
                                 <option value="live-in">Live-in</option>
-                                <option value="live-out">Live-out</option>
+                                <option value="go-home">Go After Work</option>
                             </select>
                         </div>
                     </div>
@@ -373,6 +443,10 @@ class AuthSystem {
             
             return `
                 <div class="profile-card">
+                    <div class="profile-status">
+                        <span class="profile-status-label">Current Status:</span>
+                        ${this.generateStatusBadge({...profile, name: this.currentUser.name})}
+                    </div>
                     <div class="profile-header">
                         <img src="${getImageUrl(profile.profile_photo)}" alt="Profile" class="profile-avatar">
                         <div class="profile-info">
@@ -387,6 +461,9 @@ class AuthSystem {
                         <div class="profile-actions">
                             <button class="btn btn-primary" onclick="authSystem.showEditProfile()">
                                 <i class="fas fa-edit"></i> Edit Profile
+                            </button>
+                            <button class="btn btn-outline" onclick="authSystem.showStatusManagement()">
+                                <i class="fas fa-toggle-on"></i> Update Status
                             </button>
                         </div>
                         
@@ -429,11 +506,20 @@ class AuthSystem {
                                 <input type="text" id="editNationalId" name="nationalId" value="${profile.national_id || ''}" required>
                             </div>
                             
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="editProfilePhoto">Profile Photo</label>
-                                <input type="file" id="editProfilePhoto" name="profilePhoto" accept="image/*" onchange="previewImage(event)">
+                                <input type="file" id="editProfilePhoto" name="profilePhoto" accept="image/*" onchange="previewImage(event, 'editImagePreview')">
                                 <div id="editImagePreview" style="margin-top: 10px;">
                                     ${profile.profile_photo ? `<img src="${getImageUrl(profile.profile_photo)}" alt="Current profile" style="max-width: 100px; max-height: 100px; border-radius: 50%;">` : ''}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="editIdPhoto">National ID Photo</label>
+                                <input type="file" id="editIdPhoto" name="idPhoto" accept="image/*" onchange="previewImage(event, 'editIdImagePreview')">
+                                <div id="editIdImagePreview" style="margin-top: 10px;">
+                                    ${profile.id_photo ? `<img src="${getImageUrl(profile.id_photo)}" alt="Current ID" style="max-width: 150px; border-radius: 8px;">` : ''}
                                 </div>
                             </div>
                         </div>
@@ -453,7 +539,7 @@ class AuthSystem {
                                     <option value="weekends" ${profile.availability === 'weekends' ? 'selected' : ''}>Weekends Only</option>
                                     <option value="flexible" ${profile.availability === 'flexible' ? 'selected' : ''}>Flexible</option>
                                     <option value="live-in" ${profile.availability === 'live-in' ? 'selected' : ''}>Live-in</option>
-                                    <option value="live-out" ${profile.availability === 'live-out' ? 'selected' : ''}>Live-out</option>
+                                    <option value="go-home" ${profile.availability === 'go-home' ? 'selected' : ''}>Go After Work</option>
                                 </select>
                             </div>
                         </div>
@@ -542,7 +628,7 @@ class AuthSystem {
                             <option value="weekends">Weekends Only</option>
                             <option value="flexible">Flexible</option>
                             <option value="live-in">Live-in</option>
-                            <option value="live-out">Live-out</option>
+                            <option value="go-home">Go After Work</option>
                         </select>
                     </div>
                     <button class="btn btn-primary fw-search-btn" onclick="authSystem.searchWorkers()">
@@ -569,32 +655,59 @@ class AuthSystem {
         const formElement = event.target;
         const formData = new FormData(formElement);
         let photoUrl = '';
+        let idPhotoUrl = '';
         
-        // Check if an image was selected
+        // Handle Profile Photo
         const photoFile = formData.get('profilePhoto');
         if (photoFile && photoFile.size > 0) {
-            const uploadData = new FormData();
-            uploadData.append('image', photoFile);
+            const upP = new FormData(); upP.append('image', photoFile);
             try {
-                const uploadResponse = await apiService.uploadImage(uploadData);
-                if (uploadResponse.url) {
-                    photoUrl = uploadResponse.url;
-                }
-            } catch (err) {
-                // Don't fail the entire profile creation if image upload fails
-                console.warn('Image upload failed:', err.message);
-                // Continue without photo - user can upload later
-            }
+                const res = await apiService.uploadImage(upP);
+                if (res.url) photoUrl = res.url;
+            } catch (err) { console.warn('Profile photo upload failed:', err.message); }
+        }
+
+        // Handle ID Photo
+        const idFile = formData.get('idPhoto');
+        if (idFile && idFile.size > 0) {
+            const upI = new FormData(); upI.append('image', idFile);
+            try {
+                const res = await apiService.uploadImage(upI);
+                if (res.url) idPhotoUrl = res.url;
+            } catch (err) { console.warn('ID photo upload failed:', err.message); }
         }
         
         const profileData = {};
         for (let [key, value] of formData.entries()) {
             if (key === 'profilePhoto') {
                 profileData[key] = photoUrl;
-            } else {
+            } else if (key === 'idPhoto') {
+                profileData[key] = idPhotoUrl;
+            } else if (key === 'nationalId') {
+                profileData[key] = value;
+            } else if (key === 'location') {
+                profileData[key] = value;
+            } else if (key === 'availability') {
+                profileData[key] = value;
+            } else if (key === 'expectedSalary') {
+                profileData[key] = value;
+            } else if (key === 'experienceYears') {
+                profileData[key] = value;
+            } else if (key === 'skills') {
+                profileData[key] = value;
+            } else if (key === 'recommendation1Name') {
+                profileData[key] = value;
+            } else if (key === 'recommendation1Phone') {
+                profileData[key] = value;
+            } else if (key === 'recommendation2Name') {
+                profileData[key] = value;
+            } else if (key === 'recommendation2Phone') {
                 profileData[key] = value;
             }
         }
+        
+        console.log('=== FRONTEND PROFILE SAVE ===');
+        console.log('Profile data being sent:', profileData);
         
         try {
             const response = await apiService.saveWorkerProfile(profileData);
@@ -602,17 +715,141 @@ class AuthSystem {
             // Update current user with profile data
             this.currentUser.profileComplete = true;
             
-            // Show success message with appropriate image upload info
+            // Show success message
             let successMessage = 'Profile completed successfully!';
-            if (photoFile && photoFile.size > 0 && photoUrl) {
-                successMessage += ' Profile photo uploaded successfully.';
-            } else if (photoFile && photoFile.size > 0 && !photoUrl) {
-                successMessage += ' (Profile photo upload failed - you can try again later)';
-            }
+            if (photoUrl) successMessage += ' Profile photo uploaded.';
+            if (idPhotoUrl) successMessage += ' ID photo uploaded.';
+            
             this.showAlert(successMessage, 'success');
             this.showWorkerDashboard();
         } catch (error) {
             this.showAlert(error.message, 'error');
+        }
+    }
+
+    async updateWorkerProfile(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        
+        let profilePhoto = '';
+        let idPhoto = '';
+        
+        try {
+            // Handle Profile Photo Edit
+            const pFile = formData.get('profilePhoto');
+            if (pFile && pFile.size > 0) {
+                const up = new FormData(); up.append('image', pFile);
+                const res = await apiService.uploadImage(up);
+                profilePhoto = res.url;
+            }
+            
+            // Handle ID Photo Edit
+            const iFile = formData.get('idPhoto');
+            if (iFile && iFile.size > 0) {
+                const up = new FormData(); up.append('image', iFile);
+                const res = await apiService.uploadImage(up);
+                idPhoto = res.url;
+            }
+            
+            const updateData = {};
+            for (let [k, v] of formData.entries()) {
+                if (k === 'profilePhoto') {
+                    if (profilePhoto) updateData[k] = profilePhoto;
+                } else if (k === 'idPhoto') {
+                    if (idPhoto) updateData[k] = idPhoto;
+                } else {
+                    updateData[k] = v;
+                }
+            }
+            
+            await apiService.updateWorkerProfile(updateData);
+            this.showAlert('Profile updated successfully!', 'success');
+            this.showDashboardSection('profile');
+        } catch (error) {
+            this.showAlert(error.message, 'error');
+        }
+    }
+
+    async showStatusManagement() {
+        try {
+            const response = await apiService.getWorkerProfile();
+            const profile = response.profile;
+            const currentStatus = this.getWorkerStatus({...profile, name: this.currentUser.name});
+            
+            const statusModal = `
+                <div class="profile-card">
+                    <h2><i class="fas fa-toggle-on"></i> Update Your Status</h2>
+                    <p>Let employers know your current availability</p>
+                    
+                    <div class="profile-status">
+                        <span class="profile-status-label">Current Status:</span>
+                        ${this.generateStatusBadge({...profile, name: this.currentUser.name})}
+                    </div>
+                    
+                    <form id="statusUpdateForm" onsubmit="authSystem.updateWorkerStatus(event)">
+                        <div class="form-group">
+                            <label for="availabilityStatus">Availability Status</label>
+                            <select id="availabilityStatus" name="availability" class="form-control" required>
+                                <option value="available" ${currentStatus.status === 'available' ? 'selected' : ''}>
+                                    🟢 Available for work
+                                </option>
+                                <option value="unavailable" ${currentStatus.status === 'unavailable' ? 'selected' : ''}>
+                                    🔴 Temporarily unavailable
+                                </option>
+                                <option value="hired" ${currentStatus.status === 'hired' ? 'selected' : ''}>
+                                    💼 Currently employed
+                                </option>
+                                <option value="unhired" ${currentStatus.status === 'unhired' ? 'selected' : ''}>
+                                    🟡 Seeking employment
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="statusNote">Status Note (Optional)</label>
+                            <textarea id="statusNote" name="status_note" placeholder="Add a note about your current situation..." rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Status
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            showModal(statusModal);
+            
+        } catch (error) {
+            this.showAlert('Failed to load current status. Please try again.', 'error');
+        }
+    }
+
+    async updateWorkerStatus(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(event.target);
+        const statusData = {
+            availability: formData.get('availability'),
+            status_note: formData.get('status_note')
+        };
+        
+        try {
+            // In a real app: await apiService.updateWorkerStatus(statusData);
+            this.currentUser.availability = statusData.availability;
+            this.currentUser.status_note = statusData.status_note;
+            
+            this.showAlert('Status updated successfully!', 'success');
+            closeModal();
+            
+            // Refresh the profile section
+            showDashboardSection('profile');
+            
+        } catch (error) {
+            this.showAlert('Failed to update status. Please try again.', 'error');
         }
     }
 
@@ -693,6 +930,9 @@ class AuthSystem {
 
     displaySearchResults(workers) {
         const resultsDiv = document.getElementById('searchResults');
+        
+        console.log('=== DISPLAYING WORKER SEARCH RESULTS ===');
+        console.log('Workers data:', workers);
 
         if (!workers || workers.length === 0) {
             resultsDiv.innerHTML = `
@@ -715,9 +955,20 @@ class AuthSystem {
             'live-in': '#dc2626', 'live-out': '#0891b2'
         };
 
-        const getImageUrl = (photoUrl, workerId) => this.getImageUrl(photoUrl, `https://picsum.photos/seed/worker${workerId}/100/100.jpg`);
+        const getImageUrl = (photoUrl, workerId) => {
+            const url = this.getImageUrl(photoUrl, `https://picsum.photos/seed/worker${workerId}/100/100.jpg`);
+            console.log(`Image URL for worker ${workerId}:`, url, 'Original photo_url:', photoUrl);
+            return url;
+        };
 
         const cardsHTML = workers.map(worker => {
+            console.log(`Processing worker ${worker.id}:`, {
+                name: worker.name,
+                profile_photo: worker.profile_photo,
+                id_photo: worker.id_photo,
+                is_verified: worker.is_verified
+            });
+            
             const avKey = worker.availability || 'flexible';
             const avLabel = availabilityLabels[avKey] || avKey;
             const avColor = availabilityColors[avKey] || '#2563eb';
@@ -731,18 +982,28 @@ class AuthSystem {
                 ? `<span class="wc-skill-chip wc-skill-more">+${skills.length - 4} more</span>` : '';
             const initials = worker.name ? worker.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?';
 
+            const profileImageUrl = getImageUrl(worker.profile_photo, worker.id);
+            const hasIdPhoto = worker.id_photo && worker.id_photo !== null && worker.id_photo !== '';
+
             return `
             <article class="wc-card">
+                <!-- Status Badge -->
+                <div class="wc-status-container">
+                    ${this.generateStatusBadge(worker)}
+                </div>
+                
                 <!-- Avatar + Name -->
                 <div class="wc-top">
                     <div class="wc-avatar-wrap">
-                        <img src="${getImageUrl(worker.profile_photo, worker.id)}" alt="${worker.name}"
+                        <img src="${profileImageUrl}" alt="${worker.name}"
                              class="wc-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                         <div class="wc-avatar-fallback" style="display:none">${initials}</div>
+                        ${worker.is_verified ? '<div class="wc-verified-badge"><i class="fas fa-check-circle"></i></div>' : ''}
                     </div>
                     <div class="wc-identity">
                         <h3 class="wc-name">${worker.name}</h3>
                         <span class="wc-badge" style="background:${avColor}18;color:${avColor};border:1.5px solid ${avColor}35">${avLabel}</span>
+                        ${hasIdPhoto ? '<span class="wc-id-badge"><i class="fas fa-id-card"></i> ID Verified</span>' : ''}
                     </div>
                     <div class="wc-salary-pill">
                         <i class="fas fa-coins"></i> ${salary}
@@ -792,11 +1053,18 @@ class AuthSystem {
             const response = await apiService.getWorkerById(workerId);
             const worker = response.worker;
             
+            // Helper function to get full image URL
+            const getImageUrl = (photoUrl) => this.getImageUrl(photoUrl);
+            
             // Show detailed profile view
             const profileHTML = `
                 <div class="profile-card">
+                    <div class="profile-status">
+                        <span class="profile-status-label">Worker Status:</span>
+                        ${this.generateStatusBadge(worker)}
+                    </div>
                     <div class="profile-header">
-                        <img src="${getImageUrl(worker.profile_photo) || 'https://picsum.photos/seed/worker' + worker.id + '/100/100.jpg'}" alt="${worker.name}" class="profile-avatar">
+                        <img src="${getImageUrl(worker.profile_photo) || 'https://picsum.photos/seed/worker' + worker.id + '/120/120.jpg'}" alt="${worker.name}" class="profile-avatar">
                         <div class="profile-info">
                             <h3>${worker.name}</h3>
                             <p><i class="fas fa-envelope"></i> ${worker.email}</p>
@@ -818,6 +1086,23 @@ class AuthSystem {
                         
                         <h4>National ID</h4>
                         <p><strong>ID Number:</strong> ${worker.national_id}</p>
+                        ${worker.id_photo && worker.id_photo !== null && worker.id_photo !== '' ? `
+                            <div class="id-photo-container">
+                                <label><i class="fas fa-id-card"></i> Verified ID Document:</label>
+                                <div class="id-photo-wrapper">
+                                    <img src="${this.getImageUrl(worker.id_photo)}" alt="National ID" class="id-photo-preview" 
+                                         onerror="this.style.display='none';this.nextElementSibling.style.display='block'; console.error('Failed to load ID photo:', this.src)">
+                                    <div class="id-photo-error" style="display:none">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <p>ID photo could not be loaded</p>
+                                        <small>Please contact support if this issue persists</small>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline btn-sm" onclick="window.open('${this.getImageUrl(worker.id_photo)}', '_blank')">
+                                    <i class="fas fa-expand"></i> View Full Size
+                                </button>
+                            </div>
+                        ` : '<p class="no-photo"><i class="fas fa-info-circle"></i> ID photo not uploaded or verified.</p>'}
                     </div>
                     
                     <button class="btn btn-primary" onclick="authSystem.contactWorker('${worker.id}')">
@@ -952,66 +1237,179 @@ class AuthSystem {
         }
     }
 
-    getApplicationsSection() {
-        return `
-            <div class="apps-page">
+    async getApplicationsSection() {
+        try {
+            const response = await apiService.getMyApplications();
+            const apps = response.applications || [];
+            
+            const stats = {
+                total: apps.length,
+                pending: apps.filter(a => a.status === 'pending').length,
+                accepted: apps.filter(a => a.status === 'accepted').length,
+                rejected: apps.filter(a => a.status === 'rejected').length
+            };
 
-                <!-- Page Header -->
-                <div class="apps-header">
-                    <div>
-                        <h2><i class="fas fa-file-alt"></i> My Applications</h2>
-                        <p class="apps-sub">Track the status of jobs you have applied to</p>
+            const getStatusConfig = (status) => {
+                const config = {
+                    pending: {
+                        color: '#f59e0b',
+                        icon: 'fas fa-clock',
+                        label: 'Pending',
+                        message: 'Your application is currently being reviewed by the employer.',
+                        msgIcon: 'fas fa-hourglass-half'
+                    },
+                    accepted: {
+                        color: '#10b981',
+                        icon: 'fas fa-check-circle',
+                        label: 'Accepted',
+                        message: 'Congratulations! You\'ve been accepted. Contact the employer for next steps.',
+                        msgIcon: 'fas fa-trophy'
+                    },
+                    rejected: {
+                        color: '#ef4444',
+                        icon: 'fas fa-times-circle',
+                        label: 'Declined',
+                        message: 'This position was filled or you weren\'t selected. Keep looking!',
+                        msgIcon: 'fas fa-info-circle'
+                    }
+                };
+                return config[status] || config.pending;
+            };
+
+            const appsHTML = apps.length > 0 ? `
+                <div class="modern-apps-container">
+                    <!-- Filter Tabs -->
+                    <div class="apps-filter-tabs">
+                        <button class="filter-tab active" data-filter="all">All Applications <span>${stats.total}</span></button>
+                        <button class="filter-tab" data-filter="pending">Pending <span>${stats.pending}</span></button>
+                        <button class="filter-tab" data-filter="accepted">Accepted <span>${stats.accepted}</span></button>
+                        <button class="filter-tab" data-filter="rejected">Rejected <span>${stats.rejected}</span></button>
+                    </div>
+
+                    <div class="modern-apps-list" id="modernAppsList">
+                        ${apps.map(app => {
+                            const config = getStatusConfig(app.status);
+                            const appliedDate = new Date(app.applied_at);
+                            const formattedDate = appliedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            const daysAgo = Math.floor((new Date() - appliedDate) / (1000 * 60 * 60 * 24));
+                            const daysAgoText = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+                            
+                            return `
+                            <div class="modern-app-card" data-status="${app.status}">
+                                <div class="app-card-glass"></div>
+                                <div class="app-card-content">
+                                    <div class="app-card-main">
+                                        <div class="app-info-group">
+                                            <h3 class="app-job-title">${app.job_title}</h3>
+                                            <div class="app-meta-grid">
+                                                <span class="app-meta-item" title="Employer">
+                                                    <i class="fas fa-building"></i> ${app.employer_name}
+                                                </span>
+                                                <span class="app-meta-item" title="Location">
+                                                    <i class="fas fa-map-marker-alt"></i> ${app.job_location}
+                                                </span>
+                                                <span class="app-meta-item" title="Applied Date">
+                                                    <i class="fas fa-calendar-alt"></i> ${formattedDate}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="app-status-side">
+                                            <div class="modern-status-badge ${app.status}">
+                                                <i class="${config.icon}"></i>
+                                                <span>${config.label}</span>
+                                            </div>
+                                            <span class="app-relative-time">${daysAgoText}</span>
+                                        </div>
+                                    </div>
+                                    <div class="app-card-footer">
+                                        <div class="app-message-box ${app.status}">
+                                            <i class="${config.msgIcon}"></i>
+                                            <p>${config.message}</p>
+                                        </div>
+                                        <div class="app-actions">
+                                            <button class="btn-text-action" onclick="authSystem.viewJobDetails('${app.job_id}')">
+                                                Job Details <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            `}).join('')}
                     </div>
                 </div>
+            ` : `
+                <div class="modern-empty-state">
+                    <div class="empty-art">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <h3>Your Journey Starts Here</h3>
+                    <p>You haven't applied to any jobs yet. Browse thousands of opportunities and find your perfect fit.</p>
+                    <button class="btn btn-primary btn-large" onclick="showDashboardSection('jobs')">
+                        Explore Opportunities
+                    </button>
+                </div>
+            `;
 
-                <!-- Stat Cards -->
-                <div class="apps-stats">
-                    <div class="apps-stat-card apps-stat-total">
-                        <div class="apps-stat-icon"><i class="fas fa-layer-group"></i></div>
-                        <div class="apps-stat-body">
-                            <span class="apps-stat-num">0</span>
-                            <span class="apps-stat-label">Total Sent</span>
+            // Initialize filter event listeners after return
+            setTimeout(() => {
+                const tabs = document.querySelectorAll('.filter-tab');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        const filter = tab.dataset.filter;
+                        const cards = document.querySelectorAll('.modern-app-card');
+                        cards.forEach(card => {
+                            if (filter === 'all' || card.dataset.status === filter) {
+                                card.style.display = 'block';
+                                card.classList.add('fade-in');
+                            } else {
+                                card.style.display = 'none';
+                            }
+                        });
+                    });
+                });
+            }, 100);
+
+            return `
+                <div class="modern-apps-page">
+                    <header class="section-hero">
+                        <div class="hero-text">
+                            <h1>Application Portal</h1>
+                            <p>Track your professional growth and upcoming opportunities</p>
                         </div>
-                    </div>
-                    <div class="apps-stat-card apps-stat-pending">
-                        <div class="apps-stat-icon"><i class="fas fa-clock"></i></div>
-                        <div class="apps-stat-body">
-                            <span class="apps-stat-num">0</span>
-                            <span class="apps-stat-label">Pending Review</span>
+                        <div class="hero-stats">
+                            <div class="mini-stat">
+                                <span class="num">${stats.total}</span>
+                                <span class="lab">Total</span>
+                            </div>
+                            <div class="mini-stat pending">
+                                <span class="num">${stats.pending}</span>
+                                <span class="lab">Pending</span>
+                            </div>
+                            <div class="mini-stat accepted">
+                                <span class="num">${stats.accepted}</span>
+                                <span class="lab">Success</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="apps-stat-card apps-stat-accepted">
-                        <div class="apps-stat-icon"><i class="fas fa-check-circle"></i></div>
-                        <div class="apps-stat-body">
-                            <span class="apps-stat-num">0</span>
-                            <span class="apps-stat-label">Accepted</span>
-                        </div>
-                    </div>
-                    <div class="apps-stat-card apps-stat-rejected">
-                        <div class="apps-stat-icon"><i class="fas fa-times-circle"></i></div>
-                        <div class="apps-stat-body">
-                            <span class="apps-stat-num">0</span>
-                            <span class="apps-stat-label">Declined</span>
-                        </div>
+                    </header>
+
+                    <div class="content-body">
+                        ${appsHTML}
                     </div>
                 </div>
-
-                <!-- Empty State -->
-                <div class="apps-list">
-                    <div class="apps-empty">
-                        <div class="apps-empty-art">
-                            <i class="fas fa-paper-plane"></i>
-                        </div>
-                        <h3>No Applications Yet</h3>
-                        <p>You haven't applied to any positions yet.<br>Browse open jobs and take the first step toward your next opportunity!</p>
-                        <button class="btn btn-primary" onclick="showDashboardSection('jobs')">
-                            <i class="fas fa-search"></i> Browse Available Jobs
-                        </button>
-                    </div>
+            `;
+        } catch (error) {
+            console.error('Failed to load applications:', error);
+            return `
+                <div class="error-container">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Something went wrong</h3>
+                    <p>${error.message}</p>
+                    <button class="btn btn-outline" onclick="showDashboardSection('applications')">Try Again</button>
                 </div>
-
-            </div>
-        `;
+            `;
+        }
     }
 
     getWorkerStatsSection() {
@@ -1063,13 +1461,173 @@ class AuthSystem {
         `;
     }
 
+    // Modern modal dialog system
+    showModal(title, content, onConfirm, onCancel) {
+        const modalHTML = `
+            <div class="modal-overlay" id="modalOverlay">
+                <div class="modal-container">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${title}</h3>
+                        <button class="modal-close" onclick="authSystem.closeModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        ${content}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="authSystem.closeModal()">Cancel</button>
+                        <button class="btn btn-primary" id="modalConfirmBtn">Apply for Job</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHTML;
+        document.body.appendChild(modalContainer);
+        
+        // Setup event handlers
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        const overlay = document.getElementById('modalOverlay');
+        
+        confirmBtn.addEventListener('click', () => {
+            const result = onConfirm();
+            if (result !== false) {
+                this.closeModal();
+            }
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                this.closeModal();
+                if (onCancel) onCancel();
+            }
+        });
+        
+        // Show modal with animation
+        setTimeout(() => {
+            overlay.classList.add('show');
+        }, 10);
+    }
+    
+    closeModal() {
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+    }
+
     // Job application methods
     async applyForJob(jobId) {
         try {
-            // This would need to be implemented in the backend
-            this.showAlert('Application feature coming soon!', 'info');
+            console.log('=== APPLYING FOR JOB ===');
+            console.log('Job ID:', jobId);
+            console.log('User:', this.currentUser);
+            
+            // Check if user is logged in and is a worker
+            if (!this.currentUser || this.currentUser.userType !== 'worker') {
+                this.showAlert('Only workers can apply for jobs. Please log in as a worker.', 'error');
+                return;
+            }
+            
+            // Check if worker has completed profile
+            if (!this.currentUser.profileComplete) {
+                this.showAlert('Please complete your profile before applying for jobs.', 'error');
+                return;
+            }
+            
+            // Show modern application modal
+            const modalContent = `
+                <div class="job-application-form">
+                    <div class="form-group">
+                        <label for="coverLetter">Cover Letter (Optional)</label>
+                        <textarea id="coverLetter" class="form-textarea" placeholder="Tell the employer why you're perfect for this job..." rows="5"></textarea>
+                        <small class="form-help">Share your relevant experience and why you're interested in this position</small>
+                    </div>
+                </div>
+            `;
+            
+            this.showModal(
+                'Apply for Job',
+                modalContent,
+                () => {
+                    const coverLetter = document.getElementById('coverLetter').value.trim();
+                    this.submitJobApplication(jobId, coverLetter);
+                },
+                () => {
+                    console.log('Application cancelled');
+                }
+            );
+            
         } catch (error) {
-            this.showAlert(error.message, 'error');
+            console.error('=== JOB APPLICATION FAILED ===');
+            console.error('Error:', error);
+            console.error('Error message:', error.message);
+            
+            // Show specific error messages
+            let errorMsg = error.message || 'Failed to apply for job';
+            
+            if (errorMsg.includes('already applied')) {
+                errorMsg = 'You have already applied for this job.';
+            } else if (errorMsg.includes('not found') || errorMsg.includes('not active')) {
+                errorMsg = 'This job is no longer available.';
+            } else if (errorMsg.includes('Only workers')) {
+                errorMsg = 'Only workers can apply for jobs.';
+            } else if (errorMsg.includes('Access token')) {
+                errorMsg = 'Please log in again and try.';
+            }
+            
+            this.showAlert(errorMsg, 'error');
+        }
+    }
+    
+    async submitJobApplication(jobId, coverLetter) {
+        try {
+            // Show loading state
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+            const originalText = confirmBtn.innerHTML;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            confirmBtn.disabled = true;
+            
+            const response = await apiService.applyForJob(jobId, coverLetter);
+            console.log('Application response:', response);
+            
+            this.showAlert('Application submitted successfully!', 'success');
+            
+            // Refresh job listings to update applied status
+            this.showDashboardSection('jobs');
+            
+        } catch (error) {
+            console.error('=== JOB APPLICATION SUBMISSION FAILED ===');
+            console.error('Error:', error);
+            console.error('Error message:', error.message);
+            
+            // Show specific error messages
+            let errorMsg = error.message || 'Failed to apply for job';
+            
+            if (errorMsg.includes('already applied')) {
+                errorMsg = 'You have already applied for this job.';
+            } else if (errorMsg.includes('not found') || errorMsg.includes('not active')) {
+                errorMsg = 'This job is no longer available.';
+            } else if (errorMsg.includes('Only workers')) {
+                errorMsg = 'Only workers can apply for jobs.';
+            } else if (errorMsg.includes('Access token')) {
+                errorMsg = 'Please log in again and try.';
+            }
+            
+            this.showAlert(errorMsg, 'error');
+            
+            // Reset button state
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+            if (confirmBtn) {
+                confirmBtn.innerHTML = originalText;
+                confirmBtn.disabled = false;
+            }
         }
     }
 
@@ -1257,11 +1815,11 @@ window.testRegistration = async function() {
 };
 
 // Image preview function
-function previewImage(event) {
+function previewImage(event, previewId) {
     const file = event.target.files[0];
-    const preview = document.getElementById('imagePreview');
+    const preview = document.getElementById(previewId);
     
-    if (file) {
+    if (file && preview) {
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.innerHTML = `<img src="${e.target.result}" style="max-width: 200px; border-radius: 8px;">`;

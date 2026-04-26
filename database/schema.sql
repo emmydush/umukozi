@@ -24,7 +24,7 @@ CREATE TABLE worker_profiles (
     national_id VARCHAR(50) UNIQUE NOT NULL,
     profile_photo VARCHAR(500), -- URL or file path
     location VARCHAR(255) NOT NULL,
-    availability VARCHAR(50) NOT NULL CHECK (availability IN ('full-time', 'part-time', 'weekends', 'flexible')),
+    availability VARCHAR(50) NOT NULL CHECK (availability IN ('full-time', 'part-time', 'weekends', 'flexible', 'live-in', 'go-home')),
     expected_salary INTEGER NOT NULL, -- in RWF
     experience_years INTEGER NOT NULL DEFAULT 0,
     skills TEXT NOT NULL, -- comma-separated skills
@@ -45,7 +45,7 @@ CREATE TABLE jobs (
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     location VARCHAR(255) NOT NULL,
-    job_type VARCHAR(50) NOT NULL CHECK (job_type IN ('full-time', 'part-time', 'weekends', 'flexible')),
+    job_type VARCHAR(50) NOT NULL CHECK (job_type IN ('full-time', 'part-time', 'weekends', 'flexible', 'live-in', 'go-home')),
     salary_range_min INTEGER, -- in RWF
     salary_range_max INTEGER, -- in RWF
     requirements TEXT,

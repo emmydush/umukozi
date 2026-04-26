@@ -24,28 +24,46 @@ const authenticateToken = (req, res, next) => {
 // Worker: Apply for a job
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    console.log('=== JOB APPLICATION REQUEST ===');
+    console.log('User:', req.user);
+    console.log('Request body:', req.body);
+    
+    if (!req.user || !req.user.userId) {
+      console.log('ERROR: Invalid user token - missing userId');
+      return res.status(401).json({ error: 'Invalid authentication - user not found' });
+    }
+    
     if (req.user.userType !== 'worker') {
+      console.log('ERROR: User type check failed:', req.user.userType, 'expected: worker');
       return res.status(403).json({ error: 'Only workers can apply for jobs' });
     }
 
     const { jobId, coverLetter } = req.body;
 
+    console.log('Application data:', { jobId, coverLetter });
+
     if (!jobId) {
+      console.log('ERROR: Job ID is required');
       return res.status(400).json({ error: 'Job ID is required' });
     }
 
+    console.log('Checking if job exists and is active...');
     // Check if job exists and is active
     const jobCheck = await query('SELECT id FROM jobs WHERE id = $1 AND is_active = TRUE', [jobId]);
     if (jobCheck.rows.length === 0) {
+      console.log('ERROR: Job not found or not active:', jobId);
       return res.status(404).json({ error: 'Job not found or not active' });
     }
 
+    console.log('Job found and active, checking if already applied...');
     // Check if already applied
     const applyCheck = await query('SELECT id FROM applications WHERE job_id = $1 AND worker_id = $2', [jobId, req.user.userId]);
     if (applyCheck.rows.length > 0) {
+      console.log('ERROR: Worker already applied for this job');
       return res.status(400).json({ error: 'You have already applied for this job' });
     }
 
+    console.log('Creating new application...');
     const result = await query(
       `INSERT INTO applications (job_id, worker_id, cover_letter, status)
        VALUES ($1, $2, $3, 'pending')
@@ -53,14 +71,55 @@ router.post('/', authenticateToken, async (req, res) => {
       [jobId, req.user.userId, coverLetter || null]
     );
 
+    console.log('SUCCESS: Application submitted successfully!');
     res.status(201).json({
       message: 'Application submitted successfully',
       application: result.rows[0]
     });
 
   } catch (error) {
-    console.error('Submit application error:', error);
-    res.status(500).json({ error: 'Failed to submit application' });
+    console.error('=== JOB APPLICATION FAILED ===');
+    console.error('Error details:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    
+    // Check for specific database errors
+    if (error.code === '23514') {
+      console.log('Database constraint violation');
+      return res.status(400).json({ 
+        error: 'Invalid application data', 
+        details: 'Specific field value not allowed by database constraints.' 
+      });
+    }
+    
+    if (error.code === '23505') {
+      console.log('Database unique constraint violation');
+      return res.status(400).json({ 
+        error: 'Duplicate application', 
+        details: 'You have already applied for this job.' 
+      });
+    }
+    
+    if (error.code === 'ECONNREFUSED') {
+      console.log('Database connection refused');
+      return res.status(500).json({ 
+        error: 'Database connection failed', 
+        details: 'Cannot connect to the database. Please check if the database server is running.' 
+      });
+    }
+    
+    if (error.code === '42P01') {
+      console.log('Table does not exist');
+      return res.status(500).json({ 
+        error: 'Database table missing', 
+        details: 'Required database tables are missing. Please run the database schema setup.' 
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to submit application',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred while submitting the application.'
+    });
   }
 });
 

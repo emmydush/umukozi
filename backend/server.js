@@ -15,7 +15,7 @@ const uploadRoutes = require('./routes/upload');
 const languageRoutes = require('./routes/language');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Initialize i18n
 const i18n = new I18nBackend();
@@ -32,10 +32,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:8000',
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'development' ? true : (process.env.CORS_ORIGIN || 'http://localhost:8000'),
   credentials: true
-}));
+};
+app.use(cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
@@ -45,7 +46,30 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(i18n.middleware());
 
 // Static files for uploads
-app.use('/uploads', express.static('uploads'));
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK',
+    message: 'Umukozi API Server',
+    version: '1.0.0',
+    description: 'Household worker connection platform API',
+    endpoints: {
+      auth: '/api/auth',
+      users: '/api/users',
+      workers: '/api/workers',
+      jobs: '/api/jobs',
+      applications: '/api/applications',
+      messages: '/api/messages',
+      reviews: '/api/reviews',
+      upload: '/api/upload',
+      language: '/api/language',
+      health: '/api/health'
+    }
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

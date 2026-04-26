@@ -24,11 +24,21 @@ const authenticateToken = (req, res, next) => {
 // Create new job (employers only)
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    console.log('=== JOB CREATION REQUEST ===');
+    console.log('User:', req.user);
+    console.log('Request body:', req.body);
+    
+    if (!req.user || !req.user.userId) {
+      console.log('ERROR: Invalid user token - missing userId');
+      return res.status(401).json({ error: 'Invalid authentication - user not found' });
+    }
+    
     if (req.user.userType !== 'employer') {
+      console.log('ERROR: User type check failed:', req.user.userType, 'expected: employer');
       return res.status(403).json({ error: 'Only employers can post jobs' });
     }
 
-    const {
+    let {
       title,
       description,
       location,
@@ -38,10 +48,41 @@ router.post('/', authenticateToken, async (req, res) => {
       requirements
     } = req.body;
 
+    console.log('Job data received:', { title, description, location, jobType, salaryRangeMin });
+
     // Validation
-    if (!title || !description || !location || !jobType) {
-      return res.status(400).json({ error: 'Title, description, location, and job type are required' });
+    console.log('Validating required fields...');
+    const missingFields = [];
+    if (!title) missingFields.push('title');
+    if (!description) missingFields.push('description');
+    if (!location) missingFields.push('location');
+    if (!jobType) missingFields.push('jobType');
+    
+    if (missingFields.length > 0) {
+      console.log('ERROR: Validation failed - missing fields:', missingFields);
+      return res.status(400).json({ 
+        error: 'Missing required fields', 
+        details: `Please provide: ${missingFields.join(', ')}` 
+      });
     }
+    
+    // Validate job type
+    const validJobTypes = ['full-time', 'part-time', 'weekends', 'flexible', 'live-in', 'go-home'];
+    if (!validJobTypes.includes(jobType)) {
+      console.log('ERROR: Invalid job type:', jobType);
+      return res.status(400).json({ 
+        error: 'Invalid job type', 
+        details: `Must be one of: ${validJobTypes.join(', ')}` 
+      });
+    }
+
+    // Convert empty strings to null for optional numeric/text fields
+    salaryRangeMin = salaryRangeMin === '' ? null : salaryRangeMin;
+    salaryRangeMax = salaryRangeMax === '' ? null : salaryRangeMax;
+    requirements = requirements === '' ? null : requirements;
+
+    console.log('Inserting job into database...');
+    console.log('Query parameters:', [req.user.userId, title, description, location, jobType, salaryRangeMin, salaryRangeMax, requirements]);
 
     const result = await query(
       `INSERT INTO jobs 
@@ -51,14 +92,49 @@ router.post('/', authenticateToken, async (req, res) => {
       [req.user.userId, title, description, location, jobType, salaryRangeMin, salaryRangeMax, requirements]
     );
 
+    console.log('SUCCESS: Job created successfully with ID:', result.rows[0].id);
+
     res.status(201).json({
       message: 'Job posted successfully',
       job: result.rows[0]
     });
 
   } catch (error) {
-    console.error('Create job error:', error);
-    res.status(500).json({ error: 'Failed to create job' });
+    console.error('=== JOB CREATION FAILED ===');
+    console.error('Error details:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Check for specific DB errors
+    if (error.code === '23514') {
+      console.log('Database constraint violation');
+      return res.status(400).json({ 
+        error: 'Invalid job data', 
+        details: 'Specific field value not allowed by database constraints (e.g., invalid job type).' 
+      });
+    }
+    
+    if (error.code === '23505') {
+      console.log('Database unique constraint violation');
+      return res.status(400).json({ 
+        error: 'Duplicate entry', 
+        details: 'This job already exists or conflicts with existing data.' 
+      });
+    }
+    
+    if (error.code === 'ECONNREFUSED') {
+      console.log('Database connection refused');
+      return res.status(500).json({ 
+        error: 'Database connection failed', 
+        details: 'Cannot connect to the database. Please check if the database server is running.' 
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to create job',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred while creating the job.'
+    });
   }
 });
 
@@ -198,7 +274,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const { id } = req.params;
-    const {
+    let {
       title,
       description,
       location,
@@ -209,7 +285,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       isActive
     } = req.body;
 
-    // Check if job belongs to employer
+    // Check if job exists and belongs to employer
     const jobCheck = await query(
       'SELECT employer_id FROM jobs WHERE id = $1',
       [id]
@@ -223,11 +299,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'You can only update your own jobs' });
     }
 
+    // Convert empty strings to null for optional numeric/text fields
+    salaryRangeMin = salaryRangeMin === '' ? null : salaryRangeMin;
+    salaryRangeMax = salaryRangeMax === '' ? null : salaryRangeMax;
+    requirements = requirements === '' ? null : requirements;
+
     const result = await query(
       `UPDATE jobs 
-       SET title = $1, description = $2, location = $3, job_type = $4,
-           salary_range_min = $5, salary_range_max = $6, requirements = $7,
-           is_active = $8, updated_at = CURRENT_TIMESTAMP
+       SET title = COALESCE($1, title), 
+           description = COALESCE($2, description), 
+           location = COALESCE($3, location), 
+           job_type = COALESCE($4, job_type),
+           salary_range_min = $5, 
+           salary_range_max = $6, 
+           requirements = $7,
+           is_active = COALESCE($8, is_active), 
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $9
        RETURNING *`,
       [title, description, location, jobType, salaryRangeMin, salaryRangeMax, requirements, isActive, id]
@@ -240,6 +327,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Update job error:', error);
+    
+    // Check for specific DB errors (like CHECK constraint violations)
+    if (error.code === '23514') {
+      return res.status(400).json({ 
+        error: 'Invalid job data', 
+        details: 'Specific field value not allowed by database constraints (e.g., invalid job type).' 
+      });
+    }
+
     res.status(500).json({ error: 'Failed to update job' });
   }
 });
