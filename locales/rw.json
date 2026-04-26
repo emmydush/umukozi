@@ -1,0 +1,140 @@
+{
+  "header": {
+    "home": "Ahabanza",
+    "features": "Ibiranga",
+    "contact": "Twandikire",
+    "login": "Injira",
+    "register": "Iyandikishe",
+    "logout": "Sohoka",
+    "profile": "Umwirondoro",
+    "language": "Ururimi"
+  },
+  "hero": {
+    "title": "Shaka Abakozi bo mu Rugo Bizeye i Kigali",
+    "subtitle": "Guhuza abakozi bo mu rugo bizerwa n'imiryango ikeneye serivisi zabo",
+    "workerBtn": "Iyandikishe nk'Umukozi",
+    "employerBtn": "Iyandikishe nk'Umukoresha"
+  },
+  "features": {
+    "title": "Kuki Wahitamo Umukozi?",
+    "verified": {
+      "title": "Abakozi Bagenzuwe",
+      "description": "Abakozi bose bagenzurwa hakoreshejwe indangamuntu ndetse n'ibyangombwa byerekana imyitwarire yabo"
+    },
+    "mobile": {
+      "title": "Kuri Telefone Mbere",
+      "description": "Yateguriwe gukoreshwa neza kuri telefone ngendanwa i Kigali"
+    },
+    "search": {
+      "title": "Gushakisha Biyoroshye",
+      "description": "Shakisha abakozi ukurikije aho baherereye, ubumenyi, n'igihe babonekera"
+    },
+    "contact": {
+      "title": "Guhuza Ako Kanya",
+      "description": "Vugana imbonankubone n'abakozi cyangwa abakoresha"
+    }
+  },
+  "auth": {
+    "loginTitle": "Injira muri Umukozi",
+    "registerTitle": "Fungura Konti",
+    "workerRegister": "Iyandikishe nk'Umukozi",
+    "employerRegister": "Iyandikishe nk'Umukoresha",
+    "email": "Imeri",
+    "password": "Ijambo ry'ibanga",
+    "confirmPassword": "Emeza ijambo ry'ibanga",
+    "firstName": "Izina rya mbere",
+    "lastName": "Izina ry'umuryango",
+    "phone": "Nomero ya telefone",
+    "workType": "Ubwoko bw'akazi",
+    "experience": "Uburambe (Imyaka)",
+    "skills": "Ubumenyi",
+    "location": "Aho uherereye",
+    "address": "Aderesi",
+    "profilePhoto": "Ifoto y'umwirondoro",
+    "idPhoto": "Ifoto y'indangamuntu",
+    "agreeTerms": "Ndemeranya n'amabwiriza n'amategeko",
+    "submit": "Ohereza",
+    "login": "Injira",
+    "register": "Iyandikishe",
+    "forgotPassword": "Wibagiwe ijambo ry'ibanga?",
+    "noAccount": "Nta konti ufite?",
+    "haveAccount": "Usanzwe ufite konti?",
+    "loading": "Biratunganywa...",
+    "success": "Byakunze!",
+    "error": "Ikosa",
+    "emailRequired": "Imeri irakenewe",
+    "passwordRequired": "Ijambo ry'ibanga rirakenewe",
+    "passwordMismatch": "Amagambo y'ibanga ntahuye",
+    "invalidEmail": "Imeri siyo"
+  },
+  "dashboard": {
+    "title": "Urubuga rw'ibanze",
+    "welcome": "Ikaze, {{name}}",
+    "profile": "Umwirondoro wanjye",
+    "messages": "Ubutumwa",
+    "jobs": "Akazi",
+    "applications": "Ubusabe",
+    "reviews": "Ibyo bavuze",
+    "settings": "Igenamiterere",
+    "editProfile": "Hindura umwirondoro",
+    "changePassword": "Hindura ijambo ry'ibanga",
+    "logout": "Sohoka"
+  },
+  "jobs": {
+    "title": "Shaka Akazi",
+    "postJob": "Tanga Akazi",
+    "searchJobs": "Shakisha Akazi",
+    "filterByLocation": "Yungurura ukurikije aho baherereye",
+    "filterByType": "Yungurura ukurikije ubwoko",
+    "filterByPay": "Yungurura ukurikije umushahara",
+    "noJobs": "Nta kazi kabonetse",
+    "apply": "Saba Akazi",
+    "viewDetails": "Reba Ibirambuye",
+    "pay": "Umushahara",
+    "perHour": "ku isaha",
+    "perDay": "ku munsi",
+    "perMonth": "ku kwezi",
+    "postedBy": "Byatanzwe na",
+    "daysAgo": "iminsi ishize"
+  },
+  "footer": {
+    "description": "Ihuza imiryango n'abakozi bizerwa i Kigali.",
+    "quickLinks": "Ahandi Wasura",
+    "about": "Abo Turi Bo",
+    "contact": "Twandikire",
+    "terms": "Amategeko n'Amabwiriza",
+    "privacy": "Ibijyanye n'Ibanga",
+    "followUs": "Dukurikire",
+    "address": "Kigali, u Rwanda",
+    "phone": "+250 788 123 456",
+    "email": "info@umukozi.rw",
+    "allRightsReserved": "Uburenganzira bwose burabitswe"
+  },
+  "messages": {
+    "title": "Ubutumwa",
+    "newMessage": "Ubutumwa Bushya",
+    "sendMessage": "Ohereza Ubutumwa",
+    "noMessages": "Nta butumwa buhari",
+    "typeMessage": "Andika ubutumwa..."
+  },
+  "reviews": {
+    "title": "Isusumire",
+    "rating": "Amanota",
+    "review": "Igitekerezo",
+    "writeReview": "Andika Igitekerezo",
+    "submit": "Ohereza Igitekerezo"
+  },
+  "common": {
+    "success": "Byakunze",
+    "error": "Ikosa",
+    "confirm": "Emeza",
+    "cancel": "Reka",
+    "delete": "Siba",
+    "edit": "Hindura",
+    "save": "Bika",
+    "close": "Funga",
+    "loading": "Biratunganywa...",
+    "noData": "Nta byabonetse",
+    "tryAgain": "Ongera Ugerageze"
+  }
+}

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="common.umukozi">Umukozi - Connect Household Workers with Employers</title>
+    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <img src="images/logo.png" alt="Umukozi" class="logo-img">
+                    </div>
+                    <nav class="nav">
+                        <a href="#home" class="nav-link active" data-i18n="header.home">Home</a>
+                        <a href="#features" class="nav-link" data-i18n="header.features">Features</a>
+                        <a href="#contact" class="nav-link" data-i18n="header.contact">Contact</a>
+                    </nav>
+                    <div class="header-right">
+                        <div class="language-selector">
+                            <button class="lang-btn" id="langBtn">
+                                <i class="fas fa-globe"></i>
+                                <span id="langDisplay">EN</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="lang-menu" id="langMenu">
+                                <button class="lang-option" data-lang="en">English</button>
+                                <button class="lang-option" data-lang="fr">Français</button>
+                                <button class="lang-option" data-lang="rw">Kinyarwanda</button>
+                            </div>
+                        </div>
+                        <div class="auth-buttons">
+                            <button class="btn btn-outline" onclick="showLogin()" data-i18n="header.login">Login</button>
+                            <button class="btn btn-primary" onclick="showRegister()" data-i18n="header.register">Register</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section id="home" class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1 data-i18n="hero.title">Find Trusted Household Workers in Kigali</h1>
+                    <p data-i18n="hero.subtitle">Connecting reliable household workers with families who need their services</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary btn-large" onclick="showWorkerRegister()" data-i18n="hero.workerBtn">
+                            <i class="fas fa-user-plus"></i> Register as Worker
+                        </button>
+                        <button class="btn btn-secondary btn-large" onclick="showEmployerRegister()" data-i18n="hero.employerBtn">
+                            <i class="fas fa-briefcase"></i> Register as Employer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="features">
+            <div class="container">
+                <h2 data-i18n="features.title">Why Choose Umukozi?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-shield-alt"></i>
+                        <h3 data-i18n="features.verified.title">Verified Workers</h3>
+                        <p data-i18n="features.verified.description">All workers are verified with national ID and recommendations</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-mobile-alt"></i>
+                        <h3 data-i18n="features.mobile.title">Mobile First</h3>
+                        <p data-i18n="features.mobile.description">Optimized for smartphone users in Kigali</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-search"></i>
+                        <h3 data-i18n="features.search.title">Easy Search</h3>
+                        <p data-i18n="features.search.description">Find workers by location, skills, and availability</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-comments"></i>
+                        <h3 data-i18n="features.contact.title">Direct Contact</h3>
+                        <p data-i18n="features.contact.description">Connect directly with workers or employers</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Auth Modals -->
+        <div id="authModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <div id="authContent"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer id="contact" class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <div class="logo">
+                            <img src="images/logo.png" alt="Umukozi" class="logo-img logo-img--footer">
+                        </div>
+                        <p data-i18n="footer.description">Connecting households with trusted workers in Kigali</p>
+                    </div>
+                    <div class="footer-section">
+                        <h4 data-i18n="footer.quickLinks">Quick Links</h4>
+                        <ul>
+                            <li><a href="#home" data-i18n="header.home">Home</a></li>
+                            <li><a href="#features" data-i18n="header.features">Features</a></li>
+                            <li><a href="#contact" data-i18n="header.contact">Contact</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-section">
+                        <h4 data-i18n="footer.quickLinks">Contact Info</h4>
+                        <p><i class="fas fa-phone"></i> <span data-i18n="footer.phone">+250 788 123 456</span></p>
+                        <p><i class="fas fa-envelope"></i> <a href="mailto:info@umukozi.rw">info@umukozi.rw</a></p>
+                        <p><i class="fas fa-map-marker-alt"></i> <span data-i18n="footer.address">Kigali, Rwanda</span></p>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p data-i18n="footer.allRightsReserved">&copy; 2024 Umukozi. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/language-selector.js"></script>
+    <script src="js/test-connection.js"></script>
+</body>
+</html>

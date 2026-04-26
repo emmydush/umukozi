@@ -1,0 +1,140 @@
+{
+  "header": {
+    "home": "Home",
+    "features": "Features",
+    "contact": "Contact",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "profile": "Profile",
+    "language": "Language"
+  },
+  "hero": {
+    "title": "Find Trusted Household Workers in Kigali",
+    "subtitle": "Connecting reliable household workers with families who need their services",
+    "workerBtn": "Register as Worker",
+    "employerBtn": "Register as Employer"
+  },
+  "features": {
+    "title": "Why Choose Umukozi?",
+    "verified": {
+      "title": "Verified Workers",
+      "description": "All workers are verified with national ID and recommendations"
+    },
+    "mobile": {
+      "title": "Mobile First",
+      "description": "Optimized for smartphone users in Kigali"
+    },
+    "search": {
+      "title": "Easy Search",
+      "description": "Find workers by location, skills, and availability"
+    },
+    "contact": {
+      "title": "Direct Contact",
+      "description": "Connect directly with workers or employers"
+    }
+  },
+  "auth": {
+    "loginTitle": "Login to Umukozi",
+    "registerTitle": "Create Your Account",
+    "workerRegister": "Register as Worker",
+    "employerRegister": "Register as Employer",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "phone": "Phone Number",
+    "workType": "Type of Work",
+    "experience": "Years of Experience",
+    "skills": "Skills",
+    "location": "Location",
+    "address": "Address",
+    "profilePhoto": "Profile Photo",
+    "idPhoto": "National ID Photo",
+    "agreeTerms": "I agree to the terms and conditions",
+    "submit": "Submit",
+    "login": "Login",
+    "register": "Register",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "loading": "Loading...",
+    "success": "Success!",
+    "error": "Error",
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "passwordMismatch": "Passwords do not match",
+    "invalidEmail": "Invalid email address"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome, {{name}}",
+    "profile": "My Profile",
+    "messages": "Messages",
+    "jobs": "Jobs",
+    "applications": "Applications",
+    "reviews": "Reviews",
+    "settings": "Settings",
+    "editProfile": "Edit Profile",
+    "changePassword": "Change Password",
+    "logout": "Logout"
+  },
+  "jobs": {
+    "title": "Find Jobs",
+    "postJob": "Post a Job",
+    "searchJobs": "Search for jobs",
+    "filterByLocation": "Filter by Location",
+    "filterByType": "Filter by Type",
+    "filterByPay": "Filter by Pay",
+    "noJobs": "No jobs found",
+    "apply": "Apply",
+    "viewDetails": "View Details",
+    "pay": "Pay",
+    "perHour": "per hour",
+    "perDay": "per day",
+    "perMonth": "per month",
+    "postedBy": "Posted by",
+    "daysAgo": "days ago"
+  },
+  "footer": {
+    "description": "Connecting households with trusted workers in Kigali",
+    "quickLinks": "Quick Links",
+    "about": "About Us",
+    "contact": "Contact",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "followUs": "Follow Us",
+    "address": "Kigali, Rwanda",
+    "phone": "+250 700 000 000",
+    "email": "info@umukozi.com",
+    "allRightsReserved": "All rights reserved"
+  },
+  "messages": {
+    "title": "Messages",
+    "newMessage": "New Message",
+    "sendMessage": "Send Message",
+    "noMessages": "No messages",
+    "typeMessage": "Type your message..."
+  },
+  "reviews": {
+    "title": "Reviews",
+    "rating": "Rating",
+    "review": "Review",
+    "writeReview": "Write a Review",
+    "submit": "Submit Review"
+  },
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "close": "Close",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "tryAgain": "Try Again"
+  }
+}

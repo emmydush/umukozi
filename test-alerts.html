@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert System Test</title>
+</head>
+<body>
+    <h1>Alert System Test</h1>
+    <button onclick="testSuccess()">Test Success Alert</button>
+    <button onclick="testError()">Test Error Alert</button>
+    <button onclick="testInfo()">Test Info Alert</button>
+    
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        function testSuccess() {
+            authSystem.showAlert('This is a success message!', 'success');
+        }
+        
+        function testError() {
+            authSystem.showAlert('This is an error message!', 'error');
+        }
+        
+        function testInfo() {
+            authSystem.showAlert('This is an info message!', 'info');
+        }
+    </script>
+</body>
+</html>

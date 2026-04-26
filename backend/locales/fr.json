@@ -1,0 +1,140 @@
+{
+  "header": {
+    "home": "Accueil",
+    "features": "Caractéristiques",
+    "contact": "Contact",
+    "login": "Connexion",
+    "register": "S'inscrire",
+    "logout": "Déconnexion",
+    "profile": "Profil",
+    "language": "Langue"
+  },
+  "hero": {
+    "title": "Trouvez des Travailleurs Domestiques de Confiance à Kigali",
+    "subtitle": "Reliant les travailleurs domestiques fiables aux familles qui ont besoin de leurs services",
+    "workerBtn": "S'inscrire en tant que Travailleur",
+    "employerBtn": "S'inscrire en tant que Employeur"
+  },
+  "features": {
+    "title": "Pourquoi Choisir Umukozi?",
+    "verified": {
+      "title": "Travailleurs Vérifiés",
+      "description": "Tous les travailleurs sont vérifiés avec la carte nationale d'identité et les recommandations"
+    },
+    "mobile": {
+      "title": "Mobile D'abord",
+      "description": "Optimisé pour les utilisateurs de smartphones à Kigali"
+    },
+    "search": {
+      "title": "Recherche Facile",
+      "description": "Trouvez des travailleurs par lieu, compétences et disponibilité"
+    },
+    "contact": {
+      "title": "Contact Direct",
+      "description": "Connectez-vous directement avec les travailleurs ou les employeurs"
+    }
+  },
+  "auth": {
+    "loginTitle": "Se Connecter à Umukozi",
+    "registerTitle": "Créer Votre Compte",
+    "workerRegister": "S'inscrire en tant que Travailleur",
+    "employerRegister": "S'inscrire en tant que Employeur",
+    "email": "Email",
+    "password": "Mot de Passe",
+    "confirmPassword": "Confirmer le Mot de Passe",
+    "firstName": "Prénom",
+    "lastName": "Nom de Famille",
+    "phone": "Numéro de Téléphone",
+    "workType": "Type de Travail",
+    "experience": "Années d'Expérience",
+    "skills": "Compétences",
+    "location": "Localisation",
+    "address": "Adresse",
+    "profilePhoto": "Photo de Profil",
+    "idPhoto": "Photo de la CNI",
+    "agreeTerms": "J'accepte les conditions générales",
+    "submit": "Soumettre",
+    "login": "Se Connecter",
+    "register": "S'inscrire",
+    "forgotPassword": "Mot de Passe Oublié?",
+    "noAccount": "Pas encore de compte?",
+    "haveAccount": "Vous avez déjà un compte?",
+    "loading": "Chargement...",
+    "success": "Succès!",
+    "error": "Erreur",
+    "emailRequired": "L'email est requis",
+    "passwordRequired": "Le mot de passe est requis",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "invalidEmail": "Adresse email invalide"
+  },
+  "dashboard": {
+    "title": "Tableau de Bord",
+    "welcome": "Bienvenue, {{name}}",
+    "profile": "Mon Profil",
+    "messages": "Messages",
+    "jobs": "Offres d'Emploi",
+    "applications": "Candidatures",
+    "reviews": "Avis",
+    "settings": "Paramètres",
+    "editProfile": "Modifier le Profil",
+    "changePassword": "Changer le Mot de Passe",
+    "logout": "Déconnexion"
+  },
+  "jobs": {
+    "title": "Trouver des Offres d'Emploi",
+    "postJob": "Publier une Offre d'Emploi",
+    "searchJobs": "Rechercher des offres d'emploi",
+    "filterByLocation": "Filtrer par Localisation",
+    "filterByType": "Filtrer par Type",
+    "filterByPay": "Filtrer par Salaire",
+    "noJobs": "Aucune offre d'emploi trouvée",
+    "apply": "Postuler",
+    "viewDetails": "Voir les Détails",
+    "pay": "Salaire",
+    "perHour": "par heure",
+    "perDay": "par jour",
+    "perMonth": "par mois",
+    "postedBy": "Publié par",
+    "daysAgo": "il y a quelques jours"
+  },
+  "footer": {
+    "description": "Reliant les ménages aux travailleurs de confiance à Kigali",
+    "quickLinks": "Liens Rapides",
+    "about": "À Propos",
+    "contact": "Contact",
+    "terms": "Conditions Générales",
+    "privacy": "Politique de Confidentialité",
+    "followUs": "Suivez-Nous",
+    "address": "Kigali, Rwanda",
+    "phone": "+250 700 000 000",
+    "email": "info@umukozi.com",
+    "allRightsReserved": "Tous droits réservés"
+  },
+  "messages": {
+    "title": "Messages",
+    "newMessage": "Nouveau Message",
+    "sendMessage": "Envoyer un Message",
+    "noMessages": "Pas de messages",
+    "typeMessage": "Tapez votre message..."
+  },
+  "reviews": {
+    "title": "Avis",
+    "rating": "Évaluation",
+    "review": "Avis",
+    "writeReview": "Écrire un Avis",
+    "submit": "Soumettre l'Avis"
+  },
+  "common": {
+    "success": "Succès",
+    "error": "Erreur",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "close": "Fermer",
+    "loading": "Chargement...",
+    "noData": "Aucune donnée disponible",
+    "tryAgain": "Réessayer"
+  }
+}
