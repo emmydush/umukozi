@@ -8,3 +8,10 @@ uploads/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Ignore database files
+*.db
+*.sqlite
+*.sqlite3
+umukozi.db
+backend/umukozi.db
