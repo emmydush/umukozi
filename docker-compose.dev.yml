@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  umukozi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: umukozi-backend-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=dev_jwt_secret_key
+      - JWT_EXPIRE=24h
+    volumes:
+      - ./uploads:/app/uploads
+      - ./database:/app/database
+      - ./backend:/app/backend
+      - ./css:/app/css
+      - ./js:/app/js
+      - ./images:/app/images
+      - ./locales:/app/locales
+      - ./index.html:/app/index.html
+    restart: unless-stopped
+    networks:
+      - umukozi-network
+
+networks:
+  umukozi-network:
+    driver: bridge
+
+volumes:
+  uploads:
+    driver: local
+  database:
+    driver: local
