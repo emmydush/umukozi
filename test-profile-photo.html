@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Profile Photo Test</title>
+</head>
+<body>
+    <h1>Profile Photo Test</h1>
+    <p>Testing profile photo loading from backend:</p>
+    <img src="http://localhost:3001/uploads/profile-1777297520634-634090700.jpg" alt="Test Profile Photo" style="width: 150px; height: 150px; border: 2px solid #ccc; border-radius: 50%;">
+    <br><br>
+    <div id="result"></div>
+    
+    <script>
+        const img = document.querySelector('img');
+        img.onload = function() {
+            document.getElementById('result').innerHTML = '<p style="color: green;">✅ Profile photo loaded successfully!</p>';
+        };
+        img.onerror = function() {
+            document.getElementById('result').innerHTML = '<p style="color: red;">❌ Failed to load profile photo</p>';
+        };
+    </script>
+</body>
+</html>

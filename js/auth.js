@@ -7,9 +7,114 @@ class AuthSystem {
 
     // Global helper function for image URLs
     getImageUrl(photoUrl, fallbackUrl = 'images/default-avatar.png') {
-        if (!photoUrl) return fallbackUrl;
+        if (!photoUrl || photoUrl === 'undefined' || photoUrl === 'null') return fallbackUrl;
         if (photoUrl.startsWith('http')) return photoUrl;
-        return `http://localhost:3001${photoUrl}`;
+        
+        // Ensure path starts with a slash
+        const path = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
+        return `http://${window.location.hostname}:3001${path}`;
+    }
+
+    // Load user profile photo
+    async loadUserProfilePhoto() {
+        try {
+            console.log('=== LOADING USER PROFILE PHOTO ===');
+            console.log('Current user type:', this.currentUser.userType);
+            console.log('Current user ID:', this.currentUser.userId);
+            
+            // For admin users, set a default profile photo or check if they have one
+            if (this.currentUser.userType === 'admin') {
+                // Check if admin has a profile photo in worker_profiles (for testing)
+                try {
+                    const response = await apiService.getWorkerProfile();
+                    console.log('Admin worker profile response:', response);
+                    if (response.profile && response.profile.profile_photo) {
+                        this.currentUser.profile_photo = response.profile.profile_photo;
+                        console.log('Admin profile photo loaded from worker profile:', this.currentUser.profile_photo);
+                        this.updateProfilePhotoInUI();
+                        return;
+                    }
+                } catch (error) {
+                    console.log('Admin has no worker profile, using default');
+                }
+                
+                // Set default profile photo for admin
+                this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
+                console.log('Admin profile photo set to default:', this.currentUser.profile_photo);
+                this.updateProfilePhotoInUI();
+                return;
+            }
+            
+            if (this.currentUser.userType === 'worker') {
+                const response = await apiService.getWorkerProfile();
+                console.log('Worker profile response:', response);
+                if (response.profile && response.profile.profile_photo) {
+                    this.currentUser.profile_photo = response.profile.profile_photo;
+                    console.log('Worker profile photo loaded:', this.currentUser.profile_photo);
+                    this.updateProfilePhotoInUI();
+                } else {
+                    console.log('No profile photo found in worker response');
+                }
+            }
+            
+            if (this.currentUser.userType === 'employer') {
+                // For employers, we might need a different endpoint or set default
+                console.log('Employer profile photo loading not implemented yet');
+                // Set a default for now
+                this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
+                this.updateProfilePhotoInUI();
+            }
+        } catch (error) {
+            console.warn('Failed to load user profile photo:', error);
+            // Set default profile photo on error
+            this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
+            this.updateProfilePhotoInUI();
+        }
+    }
+
+    // Update profile photo in UI
+    updateProfilePhotoInUI() {
+        console.log('=== UPDATING PROFILE PHOTO IN UI ===');
+        console.log('Current profile_photo:', this.currentUser.profile_photo);
+        
+        const userAvatars = document.querySelectorAll('.user-avatar');
+        console.log('Found user avatars:', userAvatars.length);
+        
+        userAvatars.forEach((avatar, index) => {
+            console.log(`Updating avatar ${index}:`, avatar);
+            if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                console.log('Generated image URL:', imageUrl);
+                avatar.innerHTML = `<img src="${imageUrl}" alt="${this.currentUser.name}" class="user-avatar-img" onerror="console.error('Image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+            } else {
+                console.log('No profile photo, using initial');
+                avatar.innerHTML = this.currentUser.name.charAt(0).toUpperCase();
+            }
+        });
+        
+        // Also update profile dropdown avatars
+        const dropdownAvatars = document.querySelectorAll('.profile-dropdown-avatar');
+        console.log('Found dropdown avatars:', dropdownAvatars.length);
+        
+        dropdownAvatars.forEach((avatar, index) => {
+            console.log(`Updating dropdown avatar ${index}:`, avatar);
+            if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                console.log('Generated dropdown image URL:', imageUrl);
+                avatar.innerHTML = `<img src="${imageUrl}" alt="${this.currentUser.name}" class="profile-dropdown-avatar-img" onerror="console.error('Dropdown image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+            } else {
+                console.log('No profile photo for dropdown, using initial');
+                avatar.innerHTML = this.currentUser.name.charAt(0).toUpperCase();
+            }
+        });
+    }
+
+    // Debug function to manually set profile photo (call from browser console)
+    debugSetProfilePhoto(photoUrl = '/uploads/profile-1777297520634-634090700.jpg') {
+        console.log('=== DEBUG: Setting profile photo manually ===');
+        this.currentUser.profile_photo = photoUrl;
+        this.updateProfilePhotoInUI();
+        console.log('Profile photo set to:', photoUrl);
     }
 
     // Worker status helper function
@@ -70,6 +175,9 @@ class AuthSystem {
                 const user = await apiService.verifyToken();
                 this.currentUser = user;
                 
+                // Load profile photo for all user types
+                await this.loadUserProfilePhoto();
+                
                 // Hide homepage and show dashboard immediately
                 this.hideHomePage();
                 this.showDashboard();
@@ -117,6 +225,33 @@ class AuthSystem {
             console.log('Login successful, user:', this.currentUser);
             console.log('Token stored:', localStorage.getItem('authToken') ? 'Yes' : 'No');
             
+            // Load profile photo for all user types
+            await this.loadUserProfilePhoto();
+            
+            // Check application status for all jobs after loading (only if jobs array exists)
+            setTimeout(() => {
+                if (typeof jobs !== 'undefined' && Array.isArray(jobs)) {
+                    jobs.forEach(async (job) => {
+                        try {
+                            const appStatus = await apiService.checkApplicationStatus(job.id);
+                            const applyBtn = document.getElementById(`apply-btn-${job.id}`);
+                            if (applyBtn) {
+                                if (appStatus && appStatus.applied) {
+                                    applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                                    applyBtn.disabled = true;
+                                    applyBtn.classList.remove('btn-primary');
+                                    applyBtn.classList.add('btn-success');
+                                }
+                            }
+                        } catch (error) {
+                            console.log('Error checking application status:', error);
+                        }
+                    });
+                } else {
+                    console.log('Jobs array not available during login, skipping application status check');
+                }
+            }, 1000);
+            
             return { success: true, message: response.message };
         } catch (error) {
             console.error('Login failed:', error);
@@ -124,11 +259,13 @@ class AuthSystem {
         }
     }
 
-    logout() {
-        if (confirm('Are you sure you want to log out of Umukozi?')) {
+    async logout() {
+        const confirmed = await this.showConfirm('Are you sure you want to log out of Umukozi?', 'Log Out', 'Logout');
+        if (confirmed) {
             apiService.logout();
             this.currentUser = null;
             this.showHome();
+            this.showAlert('You have successfully logged out.', 'success');
         }
     }
 
@@ -157,9 +294,18 @@ class AuthSystem {
         document.getElementById('app').style.display = 'none';
         
         if (this.currentUser.userType === 'worker') {
-            this.showWorkerDashboard();
-        } else {
+            this.showWorkerDashboard().then(() => {
+                if (typeof refreshLanguageUI === 'function') refreshLanguageUI();
+                if (typeof i18nInstance !== 'undefined') i18nInstance.applyLanguage(i18nInstance.getLanguage());
+            });
+        } else if (this.currentUser.userType === 'employer') {
             this.showEmployerDashboard();
+            if (typeof refreshLanguageUI === 'function') refreshLanguageUI();
+            if (typeof i18nInstance !== 'undefined') i18nInstance.applyLanguage(i18nInstance.getLanguage());
+        } else if (this.currentUser.userType === 'admin') {
+            this.showAdminDashboard();
+            if (typeof refreshLanguageUI === 'function') refreshLanguageUI();
+            if (typeof i18nInstance !== 'undefined') i18nInstance.applyLanguage(i18nInstance.getLanguage());
         }
     }
 
@@ -172,126 +318,118 @@ class AuthSystem {
         }
 
         dashboard.innerHTML = `
-            <div class="app-layout worker-dashboard-new">
-                <!-- Left Sidebar -->
-                <aside class="app-sidebar">
-                    <div class="sidebar-top">
-                        <div class="app-logo-mark">
-                            <i class="fas fa-home"></i>
-                        </div>
-                        <nav class="sidebar-nav">
-                            <button class="nav-item active" onclick="showDashboardSection('overview')" title="Dashboard">
-                                <i class="fas fa-th-large"></i>
-                                <span>Overview</span>
-                            </button>
-                            <button class="nav-item" onclick="showDashboardSection('jobs')" title="Find Jobs">
-                                <i class="fas fa-search-dollar"></i>
-                                <span>Find Jobs</span>
-                            </button>
-                            <button class="nav-item" onclick="showDashboardSection('applications')" title="Applications">
-                                <i class="fas fa-paper-plane"></i>
-                                <span>Applications</span>
-                            </button>
-                            <button class="nav-item" onclick="showDashboardSection('stats')" title="Activity">
-                                <i class="fas fa-chart-line"></i>
-                                <span>Activity</span>
-                            </button>
-                        </nav>
-                    </div>
-
-                    <div class="sidebar-bottom">
-                         <button class="nav-item" onclick="showDashboardSection('settings')" title="Settings">
-                            <i class="fas fa-cog"></i>
-                            <span>Settings</span>
-                        </button>
-                        <button class="logout-btn-new" onclick="authSystem.logout()">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    </div>
-                </aside>
-
-                <!-- Main Content Area -->
-                <div class="app-main">
-                    <header class="app-header">
-                        <div class="header-left">
-                            <button class="app-menu-toggle" onclick="toggleMobileSidebar()">
-                                <i class="fas fa-bars"></i>
-                            </button>
-                            <h2 id="pageTitle">Overview</h2>
-                        </div>
-                        <div class="header-right">
-                            <div class="search-box-modern">
-                                <i class="fas fa-search"></i>
-                                <input type="text" placeholder="Search...">
-                            </div>
-                            <div class="header-tools">
-                                <button class="tool-circle"><i class="fas fa-bell"></i><span class="dot"></span></button>
-                                <div class="profile-trigger" onclick="showDashboardSection('profile')">
-                                    <div class="avatar-sm">
-                                        ${this.currentUser.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <span class="user-name-compact">${this.currentUser.name.split(' ')[0]}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </header>
-
-                    <main class="app-content-scroll">
-                        <div id="dashboardContent" class="fade-in">
-                            <div class="loading-state">
-                                <div class="spinner"></div>
-                                <span>Initializing your workspace...</span>
-                            </div>
-                        </div>
-                    </main>
-                </div>
-                
-                <div class="mobile-sidebar-overlay" onclick="toggleMobileSidebar()"></div>
-            </div>
-        `;
-
-        dashboard.style.display = 'block';
-        
-        // Load overview by default
-        showDashboardSection('overview');
-    }
-
-    showEmployerDashboard() {
-        let dashboard = document.querySelector('.dashboard');
-        if (!dashboard) {
-            dashboard = document.createElement('div');
-            dashboard.className = 'dashboard';
-            document.body.appendChild(dashboard);
-        }
-
-        dashboard.innerHTML = `
             <header class="dashboard-header employer-header">
                 <div class="container">
                     <div class="header-content">
-                        <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                        
+                        <div class="header-left">
+                            <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <h2 class="dashboard-title" data-i18n="dashboard.workerDashboard">Worker Dashboard</h2>
+                        </div>
 
                         <div class="header-search">
                             <i class="fas fa-search"></i>
-                            <input type="text" placeholder="Search workers, jobs or skills...">
+                            <input type="text" data-i18n="[placeholder]dashboard.searchPlaceholder" placeholder="Search jobs, applications...">
                         </div>
 
                         <div class="header-actions">
-                            <div class="notif-btn">
+                            <div class="notif-btn" onclick="toggleNotifications()">
                                 <i class="fas fa-bell"></i>
                                 <span class="badge">3</span>
                             </div>
-                            <div class="user-info">
+                            <div class="user-info" onclick="toggleProfileMenu()">
                                 <div class="user-avatar">
-                                    ${this.currentUser.name.charAt(0).toUpperCase()}
+                                    ${(() => {
+                                        console.log('=== PROFILE PHOTO DEBUG ===');
+                                        console.log('currentUser:', this.currentUser);
+                                        console.log('profile_photo:', this.currentUser.profile_photo);
+                                        console.log('profile_photo type:', typeof this.currentUser.profile_photo);
+                                        console.log('profile_photo length:', this.currentUser.profile_photo ? this.currentUser.profile_photo.length : 'N/A');
+                                        
+                                        if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                            const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                            console.log('Generated image URL:', imageUrl);
+                                            return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="user-avatar-img" onerror="console.error('Image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                        } else {
+                                            console.log('No profile photo found, using initial');
+                                            return this.currentUser.name.charAt(0).toUpperCase();
+                                        }
+                                    })()}
                                 </div>
                                 <div class="user-welcome">
-                                    <span class="user-welcome-text">Employer Account</span>
+                                    <span class="user-welcome-text">Worker Account</span>
                                     <span class="user-welcome-subtitle">${this.currentUser.name}</span>
                                 </div>
                                 <i class="fas fa-chevron-down"></i>
+                            </div>
+                            
+                            <!-- Notifications Dropdown -->
+                            <div class="notifications-dropdown" id="notificationsDropdown">
+                                <div class="dropdown-header">
+                                    <h3 data-i18n="dashboard.notifications">Notifications</h3>
+                                    <button class="mark-all-read" onclick="markAllNotificationsRead()" data-i18n="dashboard.markAllRead">Mark all as read</button>
+                                </div>
+                                <div class="notifications-list">
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-briefcase"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>New job match: Housekeeper in Kiyovu</p>
+                                            <span class="notification-time">2 hours ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-envelope"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>Employer viewed your profile</p>
+                                            <span class="notification-time">5 hours ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>Your profile verification is complete</p>
+                                            <span class="notification-time">1 day ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Profile Dropdown -->
+                            <div class="profile-dropdown" id="profileDropdown">
+                                <div class="profile-dropdown-header">
+                                    <div class="profile-dropdown-avatar">
+                                        ${(() => {
+                                            if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                                const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                                return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="profile-dropdown-avatar-img" onerror="console.error('Profile dropdown image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                            } else {
+                                                return this.currentUser.name.charAt(0).toUpperCase();
+                                            }
+                                        })()}
+                                    </div>
+                                    <div class="profile-dropdown-info">
+                                        <h4>${this.currentUser.name}</h4>
+                                        <p>${this.currentUser.email}</p>
+                                    </div>
+                                </div>
+                                <div class="profile-dropdown-menu">
+                                    <button class="dropdown-item" onclick="showDashboardSection('settings')">
+                                        <i class="fas fa-cog"></i> <span data-i18n="dashboard.accountSettings">Account Settings</span>
+                                    </button>
+                                    <button class="dropdown-item" onclick="showDashboardSection('profile')">
+                                        <i class="fas fa-user"></i> <span data-i18n="dashboard.profile">My Profile</span>
+                                    </button>
+                                    <button class="dropdown-item" onclick="authSystem.logout()">
+                                        <i class="fas fa-sign-out-alt"></i> <span data-i18n="dashboard.logout">Logout</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -303,25 +441,22 @@ class AuthSystem {
                 <aside class="dashboard-sidebar">
                     <div class="dashboard-nav">
                         <button class="active" onclick="showDashboardSection('overview')">
-                            <i class="fas fa-th-large"></i> Dashboard
+                            <i class="fas fa-th-large"></i> <span data-i18n="dashboard.overview">Dashboard</span>
                         </button>
-                        <button onclick="showDashboardSection('search')">
-                            <i class="fas fa-search"></i> Find Workers
-                        </button>
-                        <button onclick="showDashboardSection('post')">
-                            <i class="fas fa-plus-circle"></i> Post Job
-                        </button>
-                        <button onclick="showDashboardSection('manage')">
-                            <i class="fas fa-tasks"></i> Manage Jobs
+                        <button onclick="showDashboardSection('jobs')">
+                            <i class="fas fa-search-dollar"></i> <span data-i18n="dashboard.findJobs">Find Jobs</span>
                         </button>
                         <button onclick="showDashboardSection('applications')">
-                            <i class="fas fa-envelope-open-text"></i> Applications
+                            <i class="fas fa-paper-plane"></i> <span data-i18n="dashboard.applications">Applications</span>
+                        </button>
+                        <button onclick="showDashboardSection('stats')">
+                            <i class="fas fa-chart-line"></i> <span data-i18n="dashboard.activity">Activity</span>
                         </button>
                         <button onclick="showDashboardSection('settings')">
-                            <i class="fas fa-cog"></i> Account Settings
+                            <i class="fas fa-cog"></i> <span data-i18n="dashboard.settings">Account Settings</span>
                         </button>
                         <button class="logout-btn" onclick="authSystem.logout()">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                            <i class="fas fa-sign-out-alt"></i> <span data-i18n="dashboard.logout">Logout</span>
                         </button>
                     </div>
                 </aside>
@@ -336,8 +471,495 @@ class AuthSystem {
 
         dashboard.style.display = 'block';
         
-        // Load overview by default
-        showDashboardSection('overview');
+        // Clear any loading states and load overview by default
+        const dashboardContent = document.getElementById('dashboardContent');
+        if (dashboardContent) {
+            dashboardContent.innerHTML = ''; // Clear loading state
+        }
+        
+        // Load overview by default - ensure element exists
+        setTimeout(() => {
+            const contentElement = document.getElementById('dashboardContent');
+            if (contentElement) {
+                showDashboardSection('overview');
+            } else {
+                console.error('dashboardContent element not found in worker dashboard, retrying...');
+                // Retry after a short delay
+                setTimeout(() => {
+                    const retryElement = document.getElementById('dashboardContent');
+                    if (retryElement) {
+                        showDashboardSection('overview');
+                    } else {
+                        console.error('dashboardContent element still not found after retry in worker dashboard');
+                    }
+                }, 200);
+            }
+        }, 100);
+        
+        // Refresh language display
+        if (typeof refreshLanguageUI === 'function') {
+            refreshLanguageUI();
+        }
+        
+        // Load profile photo after dashboard is rendered
+        setTimeout(() => {
+            this.loadUserProfilePhoto();
+        }, 500);
+    }
+
+    showAdminDashboard() {
+        let dashboard = document.querySelector('.dashboard');
+        if (!dashboard) {
+            dashboard = document.createElement('div');
+            dashboard.className = 'dashboard';
+            document.body.appendChild(dashboard);
+        }
+
+        dashboard.innerHTML = `
+            <header class="dashboard-header employer-header">
+                <div class="container">
+                    <div class="header-content">
+                        <div class="header-left">
+                            <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <h2 class="dashboard-title" data-i18n="dashboard.adminDashboard">Admin Dashboard</h2>
+                        </div>
+
+                        <div class="header-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" data-i18n="[placeholder]dashboard.searchAdminPlaceholder" placeholder="Search workers, payments or users...">
+                        </div>
+
+                        <div class="header-actions">
+                            <div class="notif-btn" onclick="toggleNotifications()">
+                                <i class="fas fa-bell"></i>
+                                <span class="badge">3</span>
+                            </div>
+                            <div class="user-info" onclick="toggleProfileMenu()">
+                                <div class="user-avatar">
+                                    ${(() => {
+                                        console.log('=== PROFILE PHOTO DEBUG ===');
+                                        console.log('currentUser:', this.currentUser);
+                                        console.log('profile_photo:', this.currentUser.profile_photo);
+                                        console.log('profile_photo type:', typeof this.currentUser.profile_photo);
+                                        console.log('profile_photo length:', this.currentUser.profile_photo ? this.currentUser.profile_photo.length : 'N/A');
+                                        
+                                        if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                            const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                            console.log('Generated image URL:', imageUrl);
+                                            return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="user-avatar-img" onerror="console.error('Image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                        } else {
+                                            console.log('No profile photo found, using initial');
+                                            return this.currentUser.name.charAt(0).toUpperCase();
+                                        }
+                                    })()}
+                                </div>
+                                <div class="user-welcome">
+                                    <span class="user-welcome-text">Admin Account</span>
+                                    <span class="user-welcome-subtitle">${this.currentUser.name}</span>
+                                </div>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            
+                            <!-- Notifications Dropdown -->
+                            <div class="notifications-dropdown" id="notificationsDropdown">
+                                <div class="dropdown-header">
+                                    <h3>Notifications</h3>
+                                    <button class="mark-all-read" onclick="markAllNotificationsRead()">Mark all as read</button>
+                                </div>
+                                <div class="notifications-list">
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-user-check"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>New worker verification pending</p>
+                                            <span class="notification-time">1 hour ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-credit-card"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>New payment received</p>
+                                            <span class="notification-time">3 hours ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>Weekly report is ready</p>
+                                            <span class="notification-time">1 day ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Profile Dropdown -->
+                            <div class="profile-dropdown" id="profileDropdown">
+                                <div class="profile-dropdown-header">
+                                    <div class="profile-dropdown-avatar">
+                                        ${(() => {
+                                            if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                                const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                                return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="profile-dropdown-avatar-img" onerror="console.error('Profile dropdown image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                            } else {
+                                                return this.currentUser.name.charAt(0).toUpperCase();
+                                            }
+                                        })()}
+                                    </div>
+                                    <div class="profile-dropdown-info">
+                                        <h4>${this.currentUser.name}</h4>
+                                        <p>${this.currentUser.email}</p>
+                                    </div>
+                                </div>
+                                <div class="profile-dropdown-menu">
+                                    <button class="dropdown-item" onclick="showDashboardSection('settings')">
+                                        <i class="fas fa-cog"></i> Settings
+                                    </button>
+                                    <button class="dropdown-item" onclick="authSystem.logout()">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="dashboard-layout">
+                <div class="mobile-sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+                <aside class="dashboard-sidebar">
+                    <div class="dashboard-nav">
+                        <button class="active" onclick="showDashboardSection('overview')">
+                            <i class="fas fa-th-large"></i> <span data-i18n="dashboard.overview">Overview</span>
+                        </button>
+                        <button onclick="showDashboardSection('workers')">
+                            <i class="fas fa-user-check"></i> <span data-i18n="dashboard.verifyWorkers">Verify Workers</span>
+                        </button>
+                        <button onclick="showDashboardSection('payments')">
+                            <i class="fas fa-credit-card"></i> <span data-i18n="dashboard.payments">Payments</span>
+                        </button>
+                        <button onclick="showDashboardSection('users')">
+                            <i class="fas fa-users-cog"></i> <span data-i18n="dashboard.manageUsers">Manage Users</span>
+                        </button>
+                        <button onclick="showDashboardSection('settings')">
+                            <i class="fas fa-cog"></i> <span data-i18n="dashboard.settings">Settings</span>
+                        </button>
+                        <button class="logout-btn" onclick="authSystem.logout()">
+                            <i class="fas fa-sign-out-alt"></i> <span data-i18n="dashboard.logout">Logout</span>
+                        </button>
+                    </div>
+                </aside>
+                
+                <main class="dashboard-content">
+                    <div id="dashboardContent">
+                        <div class="loading">Loading...</div>
+                    </div>
+                </main>
+            </div>
+        `;
+
+        dashboard.style.display = 'block';
+        
+        // Clear any loading states and load overview by default
+        const dashboardContent = document.getElementById('dashboardContent');
+        if (dashboardContent) {
+            dashboardContent.innerHTML = ''; // Clear loading state
+        }
+        
+        // Load overview by default - ensure element exists
+        setTimeout(() => {
+            const contentElement = document.getElementById('dashboardContent');
+            if (contentElement) {
+                showDashboardSection('overview');
+            } else {
+                console.error('dashboardContent element not found in admin dashboard, retrying...');
+                // Retry after a short delay
+                setTimeout(() => {
+                    const retryElement = document.getElementById('dashboardContent');
+                    if (retryElement) {
+                        showDashboardSection('overview');
+                    } else {
+                        console.error('dashboardContent element still not found after retry in admin dashboard');
+                    }
+                }, 200);
+            }
+        }, 100);
+        
+        // Refresh language display
+        if (typeof refreshLanguageUI === 'function') {
+            refreshLanguageUI();
+        }
+        
+        // Load profile photo after dashboard is rendered
+        setTimeout(() => {
+            this.loadUserProfilePhoto();
+        }, 500);
+    }
+
+    showEmployerDashboard() {
+        let dashboard = document.querySelector('.dashboard');
+        if (!dashboard) {
+            dashboard = document.createElement('div');
+            dashboard.className = 'dashboard';
+            document.body.appendChild(dashboard);
+        }
+
+        dashboard.innerHTML = `
+            <header class="dashboard-header employer-header">
+                <div class="container">
+                    <div class="header-content">
+                        <div class="header-left">
+                            <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <h2 class="dashboard-title" data-i18n="dashboard.overview">Overview</h2>
+                        </div>
+
+                        <div class="header-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" data-i18n="[placeholder]dashboard.searchPlaceholder" placeholder="Search workers, jobs or skills...">
+                        </div>
+
+                        <div class="header-actions">
+                            <div class="notif-btn" onclick="toggleNotifications()">
+                                <i class="fas fa-bell"></i>
+                                <span class="badge">3</span>
+                            </div>
+                            <div class="user-info" onclick="toggleProfileMenu()">
+                                <div class="user-avatar">
+                                    ${(() => {
+                                        console.log('=== PROFILE PHOTO DEBUG ===');
+                                        console.log('currentUser:', this.currentUser);
+                                        console.log('profile_photo:', this.currentUser.profile_photo);
+                                        console.log('profile_photo type:', typeof this.currentUser.profile_photo);
+                                        console.log('profile_photo length:', this.currentUser.profile_photo ? this.currentUser.profile_photo.length : 'N/A');
+                                        
+                                        if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                            const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                            console.log('Generated image URL:', imageUrl);
+                                            return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="user-avatar-img" onerror="console.error('Image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                        } else {
+                                            console.log('No profile photo found, using initial');
+                                            return this.currentUser.name.charAt(0).toUpperCase();
+                                        }
+                                    })()}
+                                </div>
+                                <div class="user-welcome">
+                                    <span class="user-welcome-text">Employer Account</span>
+                                    <span class="user-welcome-subtitle">${this.currentUser.name}</span>
+                                </div>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            
+                            <!-- Notifications Dropdown -->
+                            <div class="notifications-dropdown" id="notificationsDropdown">
+                                <div class="dropdown-header">
+                                    <h3>Notifications</h3>
+                                    <button class="mark-all-read" onclick="markAllNotificationsRead()">Mark all as read</button>
+                                </div>
+                                <div class="notifications-list">
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-user-plus"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>New application received for your job</p>
+                                            <span class="notification-time">30 minutes ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item unread">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-envelope"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>Worker sent you a message</p>
+                                            <span class="notification-time">2 hours ago</span>
+                                        </div>
+                                    </div>
+                                    <div class="notification-item">
+                                        <div class="notification-icon">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <p>Your payment was verified</p>
+                                            <span class="notification-time">1 day ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Profile Dropdown -->
+                            <div class="profile-dropdown" id="profileDropdown">
+                                <div class="profile-dropdown-header">
+                                    <div class="profile-dropdown-avatar">
+                                        ${(() => {
+                                            if (this.currentUser.profile_photo && this.currentUser.profile_photo.trim() !== '') {
+                                                const imageUrl = this.getImageUrl(this.currentUser.profile_photo);
+                                                return `<img src="${imageUrl}" alt="${this.currentUser.name}" class="profile-dropdown-avatar-img" onerror="console.error('Profile dropdown image failed to load:', this.src); this.parentElement.innerHTML='${this.currentUser.name.charAt(0).toUpperCase()}';">`;
+                                            } else {
+                                                return this.currentUser.name.charAt(0).toUpperCase();
+                                            }
+                                        })()}
+                                    </div>
+                                    <div class="profile-dropdown-info">
+                                        <h4>${this.currentUser.name}</h4>
+                                        <p>${this.currentUser.email}</p>
+                                    </div>
+                                </div>
+                                <div class="profile-dropdown-menu">
+                                    <button class="dropdown-item" onclick="showDashboardSection('settings')">
+                                        <i class="fas fa-cog"></i> Account Settings
+                                    </button>
+                                    <button class="dropdown-item" onclick="authSystem.logout()">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="dashboard-layout">
+                <div class="mobile-sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+                <aside class="dashboard-sidebar">
+                    <div class="dashboard-nav">
+                        <button class="active" onclick="showDashboardSection('overview')">
+                            <i class="fas fa-th-large"></i> <span data-i18n="dashboard.overview">Dashboard</span>
+                        </button>
+                        <button onclick="showDashboardSection('search')">
+                            <i class="fas fa-search"></i> <span data-i18n="dashboard.searchWorkers">Find Workers</span>
+                        </button>
+                        <button onclick="showDashboardSection('post')">
+                            <i class="fas fa-plus-circle"></i> <span data-i18n="dashboard.postJob">Post Job</span>
+                        </button>
+                        <button onclick="showDashboardSection('manage')">
+                            <i class="fas fa-tasks"></i> <span data-i18n="dashboard.manageJobs">Manage Jobs</span>
+                        </button>
+                        <button onclick="showDashboardSection('applications')">
+                            <i class="fas fa-envelope-open-text"></i> <span data-i18n="dashboard.inbox">Applications</span>
+                        </button>
+                        <button onclick="showDashboardSection('settings')">
+                            <i class="fas fa-cog"></i> <span data-i18n="dashboard.accountSettings">Account Settings</span>
+                        </button>
+                        <button class="logout-btn" onclick="authSystem.logout()">
+                            <i class="fas fa-sign-out-alt"></i> <span data-i18n="dashboard.logout">Logout</span>
+                        </button>
+                    </div>
+                </aside>
+                
+                <main class="dashboard-content">
+                    <div id="dashboardContent">
+                        <div class="loading">Loading...</div>
+                    </div>
+                </main>
+            </div>
+        `;
+
+        dashboard.style.display = 'block';
+        
+        // Clear any loading states and load overview by default
+        const dashboardContent = document.getElementById('dashboardContent');
+        if (dashboardContent) {
+            dashboardContent.innerHTML = ''; // Clear loading state
+        }
+        
+        // Load overview by default - ensure element exists
+        setTimeout(() => {
+            const contentElement = document.getElementById('dashboardContent');
+            if (contentElement) {
+                showDashboardSection('overview');
+            } else {
+                console.error('dashboardContent element not found in employer dashboard, retrying...');
+                // Retry after a short delay
+                setTimeout(() => {
+                    const retryElement = document.getElementById('dashboardContent');
+                    if (retryElement) {
+                        showDashboardSection('overview');
+                    } else {
+                        console.error('dashboardContent element still not found after retry in employer dashboard');
+                    }
+                }, 200);
+            }
+        }, 100);
+        
+        // Load employer alerts
+        this.renderEmployerAlerts();
+
+        // Refresh language display and apply translations to newly rendered dashboard
+        if (typeof refreshLanguageUI === 'function') {
+            refreshLanguageUI();
+        }
+        if (typeof i18nInstance !== 'undefined') {
+            i18nInstance.applyLanguage(i18nInstance.getLanguage());
+        }
+        
+        // Load profile photo after dashboard is rendered
+        setTimeout(() => {
+            this.loadUserProfilePhoto();
+        }, 500);
+    }
+
+    async renderEmployerAlerts() {
+        if (!this.currentUser || this.currentUser.userType !== 'employer') return;
+        
+        try {
+            const status = await apiService.checkPayment('0');
+            if (!status.paid || status.status !== 'verified') {
+                this.showUnlockNudge(status.status);
+            }
+        } catch (error) {
+            console.error('Error checking alerts:', error);
+        }
+    }
+
+    showUnlockNudge(status) {
+        let nudge = document.getElementById('unlockNudge');
+        if (!nudge) {
+            nudge = document.createElement('div');
+            nudge.id = 'unlockNudge';
+            nudge.className = 'unlock-nudge-animated';
+            
+            const dashboardHeader = document.querySelector('.dashboard-header');
+            if (dashboardHeader) {
+                dashboardHeader.after(nudge);
+            } else {
+                const header = document.querySelector('.app-header') || document.body;
+                header.after(nudge);
+            }
+        }
+
+        const isPending = status === 'pending';
+        nudge.innerHTML = `
+            <div class="nudge-container container">
+                <div class="nudge-content">
+                    <div class="nudge-icon-wrap ${isPending ? 'pending' : ''}">
+                        <i class="fas ${isPending ? 'fa-sync-alt fa-spin' : 'fa-unlock-alt'}"></i>
+                    </div>
+                    <div class="nudge-body">
+                        <h4>${isPending ? 'Verification in Progress' : 'Unlock Professional Connections'}</h4>
+                        <p>${isPending ? 
+                            'We are currently verifying your payment reference. This usually takes less than 15 minutes.' : 
+                            'Gain full access to worker contact details by paying a one-time connection fee of 10,000 FRW.'
+                        }</p>
+                    </div>
+                    ${isPending ? '' : `
+                        <button class="btn btn-primary nudge-btn" onclick="authSystem.contactWorker('0')">
+                            Unlock All Workers <i class="fas fa-chevron-right"></i>
+                        </button>
+                    `}
+                    <button class="nudge-dismiss" onclick="this.closest('#unlockNudge').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     getWorkerProfileForm() {
@@ -441,6 +1063,26 @@ class AuthSystem {
             // Helper function for image URLs
             const getImageUrl = (photoUrl) => this.getImageUrl(photoUrl);
             
+            // Check application status for all jobs after loading
+            setTimeout(() => {
+                jobs.forEach(async (job) => {
+                    try {
+                        const appStatus = await apiService.checkApplicationStatus(job.id);
+                        const applyBtn = document.getElementById(`apply-btn-${job.id}`);
+                        if (applyBtn) {
+                            if (appStatus && appStatus.applied) {
+                                applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                                applyBtn.disabled = true;
+                                applyBtn.classList.remove('btn-primary');
+                                applyBtn.classList.add('btn-success');
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Error checking application status:', error);
+                    }
+                });
+            }, 1000);
+            
             return `
                 <div class="profile-card">
                     <div class="profile-status">
@@ -448,7 +1090,7 @@ class AuthSystem {
                         ${this.generateStatusBadge({...profile, name: this.currentUser.name})}
                     </div>
                     <div class="profile-header">
-                        <img src="${getImageUrl(profile.profile_photo)}" alt="Profile" class="profile-avatar">
+                        <img src="${getImageUrl(profile.profile_photo)}" alt="Profile" class="profile-avatar" onerror="this.src='images/default-avatar.png'; this.onerror=null;">
                         <div class="profile-info">
                             <h3>${this.currentUser.name}</h3>
                             <p><i class="fas fa-map-marker-alt"></i> ${profile.location || 'Not specified'}</p>
@@ -460,10 +1102,10 @@ class AuthSystem {
                     <div class="profile-details">
                         <div class="profile-actions">
                             <button class="btn btn-primary" onclick="authSystem.showEditProfile()">
-                                <i class="fas fa-edit"></i> Edit Profile
+                                <i class="fas fa-edit"></i> <span data-i18n="dashboard.editProfile">Edit Profile</span>
                             </button>
                             <button class="btn btn-outline" onclick="authSystem.showStatusManagement()">
-                                <i class="fas fa-toggle-on"></i> Update Status
+                                <i class="fas fa-toggle-on"></i> <span data-i18n="dashboard.updateStatus">Update Status</span>
                             </button>
                         </div>
                         
@@ -604,8 +1246,8 @@ class AuthSystem {
                 <!-- Page Header -->
                 <div class="fw-header">
                     <div>
-                        <h2><i class="fas fa-users"></i> Find Household Workers</h2>
-                        <p class="fw-sub">Search and connect with verified, skilled workers in your area</p>
+                        <h2><i class="fas fa-users"></i> <span data-i18n="dashboard.searchWorkers">Find Household Workers</span></h2>
+                        <p class="fw-sub" data-i18n="dashboard.searchSub">Search and connect with verified, skilled workers in your area</p>
                     </div>
                 </div>
 
@@ -613,35 +1255,35 @@ class AuthSystem {
                 <div class="fw-filters">
                     <div class="fw-filter-input-wrap">
                         <i class="fas fa-map-marker-alt fw-filter-icon"></i>
-                        <input type="text" id="searchLocation" class="fw-filter-input" placeholder="Location (e.g. Kiyovu, Kigali)">
+                        <input type="text" id="searchLocation" class="fw-filter-input" data-i18n="[placeholder]dashboard.searchLocationPlaceholder" placeholder="Location (e.g. Kiyovu, Kigali)">
                     </div>
                     <div class="fw-filter-input-wrap">
                         <i class="fas fa-tools fw-filter-icon"></i>
-                        <input type="text" id="searchSkills" class="fw-filter-input" placeholder="Skills (e.g. Cooking, Childcare)">
+                        <input type="text" id="searchSkills" class="fw-filter-input" data-i18n="[placeholder]dashboard.searchSkillsPlaceholder" placeholder="Skills (e.g. Cooking, Childcare)">
                     </div>
                     <div class="fw-filter-select-wrap">
                         <i class="fas fa-clock fw-filter-icon"></i>
                         <select id="searchAvailability" class="fw-filter-select">
-                            <option value="">Any Availability</option>
-                            <option value="full-time">Full Time</option>
-                            <option value="part-time">Part Time</option>
-                            <option value="weekends">Weekends Only</option>
-                            <option value="flexible">Flexible</option>
-                            <option value="live-in">Live-in</option>
-                            <option value="go-home">Go After Work</option>
+                            <option value="" data-i18n="dashboard.anyAvailability">Any Availability</option>
+                            <option value="full-time" data-i18n="dashboard.fullTime">Full Time</option>
+                            <option value="part-time" data-i18n="dashboard.partTime">Part Time</option>
+                            <option value="weekends" data-i18n="dashboard.weekends">Weekends Only</option>
+                            <option value="flexible" data-i18n="dashboard.flexible">Flexible</option>
+                            <option value="live-in" data-i18n="dashboard.liveIn">Live-in</option>
+                            <option value="go-home" data-i18n="dashboard.goHome">Go After Work</option>
                         </select>
                     </div>
                     <button class="btn btn-primary fw-search-btn" onclick="authSystem.searchWorkers()">
-                        <i class="fas fa-search"></i> Search
+                        <i class="fas fa-search"></i> <span data-i18n="dashboard.search">Search</span>
                     </button>
                 </div>
 
                 <!-- Results Area -->
                 <div id="searchResults" class="fw-results">
-                    <div class="fw-initial-state">
-                        <div class="fw-initial-art"><i class="fas fa-search"></i></div>
-                        <h3>Find Your Perfect Worker</h3>
-                        <p>Use the filters above to search, or click <strong>Search</strong> to see all available workers.</p>
+                    <div class="fw-loading-state">
+                        <div class="fw-loading-art"><i class="fas fa-spinner fa-spin"></i></div>
+                        <h3>Loading Available Workers...</h3>
+                        <p>We're finding all available workers for you.</p>
                     </div>
                 </div>
 
@@ -714,6 +1356,12 @@ class AuthSystem {
             
             // Update current user with profile data
             this.currentUser.profileComplete = true;
+            
+            // Update profile photo if uploaded
+            if (photoUrl) {
+                this.currentUser.profile_photo = photoUrl;
+                this.updateProfilePhotoInUI();
+            }
             
             // Show success message
             let successMessage = 'Profile completed successfully!';
@@ -956,7 +1604,8 @@ class AuthSystem {
         };
 
         const getImageUrl = (photoUrl, workerId) => {
-            const url = this.getImageUrl(photoUrl, `https://picsum.photos/seed/worker${workerId}/100/100.jpg`);
+            const fallbackUrl = `https://picsum.photos/seed/worker${workerId}/100/100.jpg`;
+            const url = this.getImageUrl(photoUrl, fallbackUrl);
             console.log(`Image URL for worker ${workerId}:`, url, 'Original photo_url:', photoUrl);
             return url;
         };
@@ -1040,18 +1689,163 @@ class AuthSystem {
 
     async contactWorker(workerId) {
         try {
+            // Check current user
+            if (!this.currentUser) {
+                this.showAlert('Please log in to contact workers', 'warning');
+                return;
+            }
+
+            if (this.currentUser.userType !== 'employer') {
+                this.showAlert('Only employers can contact workers', 'warning');
+                return;
+            }
+
+            // 1. Check if payment exists and is verified
+            const paymentStatus = await apiService.checkPayment(workerId);
+            
             const response = await apiService.getWorkerById(workerId);
             const worker = response.worker;
-            this.showAlert(`Contact ${worker.name} at: ${worker.phone}`, 'info');
+
+            if (paymentStatus.paid && paymentStatus.status === 'verified') {
+                // Already paid and verified, show contact
+                this.showContactInfo(worker);
+            } else if (paymentStatus.paid && paymentStatus.status === 'pending') {
+                // Paid but pending verification
+                this.showAlert('Your payment is currently being verified. Please wait for our team to confirm your transaction.', 'info');
+            } else {
+                // Not paid yet
+                this.showPaymentModal(worker);
+            }
         } catch (error) {
             this.showAlert(error.message, 'error');
         }
     }
 
+    showContactInfo(worker) {
+        const modalContent = `
+            <div class="contact-info-modal">
+                <div class="contact-header-ui">
+                    <div class="contact-avatar-ui">
+                        ${worker.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="contact-name-ui">
+                        <h3>${worker.name}</h3>
+                        <p><i class="fas fa-check-circle"></i> Connection Verified</p>
+                    </div>
+                </div>
+                <div class="contact-body-ui">
+                    <div class="contact-field-ui">
+                        <label>Phone Number</label>
+                        <div class="contact-value-ui">
+                            <i class="fas fa-phone"></i>
+                            <a href="tel:${worker.phone}">${worker.phone}</a>
+                        </div>
+                    </div>
+                    <div class="contact-field-ui">
+                        <label>Email Address</label>
+                        <div class="contact-value-ui">
+                            <i class="fas fa-envelope"></i>
+                            <a href="mailto:${worker.email}">${worker.email}</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-footer-ui">
+                    <p>You can now reach out to ${worker.name.split(' ')[0]} to discuss your job offer.</p>
+                </div>
+            </div>
+        `;
+        this.showModal('Worker Contact Verified', modalContent, () => {
+            return true;
+        }, null, 'Done', 'wc-verified-btn');
+    }
+
+    showPaymentModal(worker) {
+        const modalContent = `
+            <div class="pay-modal">
+                <div class="pay-banner">
+                    <i class="fas fa-lock"></i>
+                    <h3>Contact Information Locked</h3>
+                </div>
+                
+                <div class="pay-body">
+                    <p class="pay-intro">Pay a one-time connection fee of <strong>10,000 FRW</strong> to unlock contact information for <strong>all workers</strong> on our platform.</p>
+                    
+                    <div class="pay-info-card">
+                        <div class="pic-row">
+                            <span>Amount:</span>
+                            <strong>10,000 FRW</strong>
+                        </div>
+                        <div class="pic-row">
+                            <span>Momo Number:</span>
+                            <strong>0795555112</strong>
+                        </div>
+                        <div class="pic-row">
+                            <span>Recipient:</span>
+                            <strong>Umukozi Support</strong>
+                        </div>
+                    </div>
+
+                    <div class="pay-steps">
+                        <h4>Step-by-Step Instructions:</h4>
+                        <ol>
+                            <li>Send <strong>10,000 FRW</strong> using MTN Mobile Money to the number above.</li>
+                            <li>Wait for the confirmation SMS from MTN.</li>
+                            <li>Copy and paste the <strong>Transaction ID</strong> below.</li>
+                        </ol>
+                    </div>
+
+                    <form id="paymentForm" onsubmit="authSystem.handlePaymentSubmission(event, '${worker.id}')" class="pay-form">
+                        <div class="form-group">
+                            <label for="transactionRef">MTN Transaction ID</label>
+                            <input type="text" id="transactionRef" class="form-control" placeholder="Enter ID from SMS..." required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block pay-submit-btn">
+                            <i class="fas fa-paper-plane"></i> Submit for Verification
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Use custom modal display since we have a form
+        this.showModal('Unlock Worker Contact', modalContent, null, null);
+        
+        // Hide the default confirm button since we have our own form button
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        if (confirmBtn) {
+            confirmBtn.style.display = 'none';
+            const footer = confirmBtn.parentElement;
+            if (footer) footer.style.display = 'none';
+        }
+    }
+
+    async handlePaymentSubmission(event, workerId) {
+        event.preventDefault();
+        const transactionRef = document.getElementById('transactionRef').value.trim();
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        
+        if (!transactionRef) return;
+
+        try {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            
+            const response = await apiService.submitPayment({ workerId, transactionRef });
+            this.showAlert(response.message, 'success');
+            this.closeModal();
+        } catch (error) {
+            this.showAlert(error.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit for Verification';
+        }
+    }
+
     async viewWorkerProfile(workerId) {
         try {
+            const paymentStatus = await apiService.checkPayment(workerId);
             const response = await apiService.getWorkerById(workerId);
             const worker = response.worker;
+            const isUnlocked = paymentStatus.paid && paymentStatus.status === 'verified';
             
             // Helper function to get full image URL
             const getImageUrl = (photoUrl) => this.getImageUrl(photoUrl);
@@ -1067,8 +1861,15 @@ class AuthSystem {
                         <img src="${getImageUrl(worker.profile_photo) || 'https://picsum.photos/seed/worker' + worker.id + '/120/120.jpg'}" alt="${worker.name}" class="profile-avatar">
                         <div class="profile-info">
                             <h3>${worker.name}</h3>
-                            <p><i class="fas fa-envelope"></i> ${worker.email}</p>
-                            <p><i class="fas fa-phone"></i> ${worker.phone}</p>
+                            <div class="contact-lock-box ${isUnlocked ? 'unlocked' : 'locked'}">
+                                ${isUnlocked ? `
+                                    <p><i class="fas fa-envelope"></i> ${worker.email}</p>
+                                    <p><i class="fas fa-phone"></i> ${worker.phone}</p>
+                                ` : `
+                                    <p class="lock-text"><i class="fas fa-lock"></i> Contact Hidden</p>
+                                    <p class="lock-sub">Pay 10,000 FRW to unlock all workers' contact info</p>
+                                `}
+                            </div>
                             <p><i class="fas fa-map-marker-alt"></i> ${worker.location}</p>
                             <p><i class="fas fa-clock"></i> ${worker.availability}</p>
                             <p><i class="fas fa-money-bill"></i> RWF ${worker.expected_salary}/month</p>
@@ -1186,7 +1987,7 @@ class AuthSystem {
                     <p class="jcm-desc">${(job.description || '').substring(0, 130)}${(job.description || '').length > 130 ? '…' : ''}</p>
 
                     <div class="jcm-actions">
-                        <button class="btn btn-primary jcm-btn-apply" onclick="authSystem.applyForJob('${job.id}')">
+                        <button class="btn btn-primary jcm-btn-apply" onclick="authSystem.applyForJob('${job.id}')" id="apply-btn-${job.id}">
                             <i class="fas fa-paper-plane"></i> Apply Now
                         </button>
                         <button class="btn btn-outline jcm-btn-details" onclick="authSystem.viewJobDetails('${job.id}')">
@@ -1195,7 +1996,27 @@ class AuthSystem {
                     </div>
                 </article>`;
             }).join('');
-
+            
+            // Check application status for all jobs after loading
+            setTimeout(() => {
+                jobs.forEach(async (job) => {
+                    try {
+                        const appStatus = await apiService.checkApplicationStatus(job.id);
+                        const applyBtn = document.getElementById(`apply-btn-${job.id}`);
+                        if (applyBtn) {
+                            if (appStatus && appStatus.applied) {
+                                applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                                applyBtn.disabled = true;
+                                applyBtn.classList.remove('btn-primary');
+                                applyBtn.classList.add('btn-success');
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Error checking application status:', error);
+                    }
+                });
+            }, 1000);
+            
             return `
                 <div class="jobs-section">
                     <div class="jobs-header">
@@ -1209,29 +2030,38 @@ class AuthSystem {
                     <div class="jobs-filter-bar">
                         <div class="jfb-input-wrap">
                             <i class="fas fa-search jfb-icon"></i>
-                            <input type="text" id="jobSearchLocation" class="jfb-input" placeholder="Search by location…" oninput="authSystem.filterJobs()">
+                            <input type="text" id="jobSearchInput" placeholder="Search by title, location, or type..." onkeyup="authSystem.filterJobs()">
                         </div>
-                        <select id="jobSearchType" class="jfb-select" onchange="authSystem.filterJobs()">
-                            <option value="">All Types</option>
-                            <option value="full-time">Full Time</option>
-                            <option value="part-time">Part Time</option>
-                            <option value="weekends">Weekends Only</option>
-                            <option value="flexible">Flexible</option>
-                            <option value="live-in">Live-in</option>
-                            <option value="live-out">Live-out</option>
-                        </select>
+                        <div class="jfb-filters">
+                            <select id="typeFilter" onchange="authSystem.filterJobs()">
+                                <option value="">All Types</option>
+                                <option value="full-time">Full Time</option>
+                                <option value="part-time">Part Time</option>
+                                <option value="weekends">Weekends Only</option>
+                                <option value="flexible">Flexible</option>
+                                <option value="live-in">Live-in</option>
+                                <option value="live-out">Live-out</option>
+                            </select>
+                            <select id="locationFilter" onchange="authSystem.filterJobs()">
+                                <option value="">All Locations</option>
+                                <option value="kigali">Kigali</option>
+                                <option value="nyarugenge">Nyarugenge</option>
+                                <option value="muhanga">Muhanga</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div class="job-listings-modern" id="jobListings">
+                    <div class="jobs-grid" id="jobsGrid">
                         ${jobsHTML}
                     </div>
                 </div>
             `;
         } catch (error) {
+            console.error('Error loading available jobs:', error);
             return `
                 <div class="jobs-section">
                     <h2>Available Jobs</h2>
-                    <div class="alert alert-error">Failed to load jobs. Please try again.</div>
+                    <div class="alert alert-error">Failed to load jobs: ${error.message}</div>
                 </div>
             `;
         }
@@ -1541,6 +2371,22 @@ class AuthSystem {
                 return;
             }
             
+            // Check if already applied for this job
+            try {
+                const existingApplication = await apiService.checkApplicationStatus(jobId);
+                if (existingApplication && existingApplication.status === 'pending') {
+                    this.showAlert('You have already applied for this job. Your application is being reviewed.', 'info');
+                    return;
+                }
+                if (existingApplication && (existingApplication.status === 'accepted' || existingApplication.status === 'reviewed')) {
+                    this.showAlert('You have already applied for this job. Your application has been ' + existingApplication.status + '.', 'info');
+                    return;
+                }
+            } catch (error) {
+                console.log('Error checking application status:', error);
+                // Continue with application if check fails
+            }
+            
             // Show modern application modal
             const modalContent = `
                 <div class="job-application-form">
@@ -1636,141 +2482,365 @@ class AuthSystem {
             const response = await apiService.getJobById(jobId);
             const job = response.job;
             
+            const typeLabels = {
+                'full-time': 'Full Time',
+                'part-time': 'Part Time',
+                'weekends': 'Weekends Only',
+                'flexible': 'Flexible',
+                'live-in': 'Live-in',
+                'live-out': 'Live-out'
+            };
+
+            const typeColors = {
+                'full-time': '#2563eb',
+                'part-time': '#7c3aed',
+                'weekends': '#d97706',
+                'flexible': '#059669',
+                'live-in': '#dc2626',
+                'live-out': '#0891b2'
+            };
+
+            const typeKey = job.job_type || 'flexible';
+            const typeLabel = typeLabels[typeKey] || typeKey;
+            const typeColor = typeColors[typeKey] || '#2563eb';
+            const salary = job.salary_range_min
+                ? `RWF ${Number(job.salary_range_min).toLocaleString()}${job.salary_range_max ? ' – ' + Number(job.salary_range_max).toLocaleString() : '+'}/mo`
+                : 'Negotiable';
+            
             const jobDetailsHTML = `
-                <div class="job-card">
-                    <h3>${job.title}</h3>
-                    <p><i class="fas fa-map-marker-alt"></i> ${job.location}</p>
-                    <p><i class="fas fa-clock"></i> ${job.job_type}</p>
-                    <p><i class="fas fa-money-bill"></i> RWF ${job.salary_range_min || 'Negotiable'}${job.salary_range_max ? ` - ${job.salary_range_max}` : ''}/month</p>
-                    <p><i class="fas fa-building"></i> Posted by: ${job.employer_name}</p>
-                    
-                    <div class="job-description">
-                        <h4>Job Description</h4>
-                        <p>${job.description}</p>
-                    </div>
-                    
-                    ${job.requirements ? `
-                        <div class="job-requirements">
-                            <h4>Requirements</h4>
-                            <p>${job.requirements}</p>
+                <div class="dashboard-content">
+                    <div class="job-detail-section">
+                        <div class="job-detail-header">
+                            <button class="btn btn-outline" onclick="showDashboardSection('jobs')">
+                                <i class="fas fa-arrow-left"></i> Back to Jobs
+                            </button>
+                            <h2>Job Details</h2>
                         </div>
-                    ` : ''}
-                    
-                    <div class="job-actions">
-                        <button class="btn btn-primary" onclick="authSystem.applyForJob('${job.id}')">
-                            <i class="fas fa-paper-plane"></i> Apply Now
-                        </button>
-                        <button class="btn btn-secondary" onclick="authSystem.getAvailableJobsSection()">
-                            <i class="fas fa-arrow-left"></i> Back to Jobs
-                        </button>
+                        
+                        <div class="job-detail-card">
+                            <div class="jdc-top">
+                                <div class="jdc-icon">
+                                    <i class="fas fa-home"></i>
+                                </div>
+                                <div class="jdc-meta">
+                                    <h3 class="jdc-title">${job.title}</h3>
+                                    <span class="jdc-employer"><i class="fas fa-building"></i> ${job.employer_name || 'Private Employer'}</span>
+                                </div>
+                                <span class="jdc-badge" style="background:${typeColor}20;color:${typeColor};border:1.5px solid ${typeColor}40">${typeLabel}</span>
+                            </div>
+
+                            <div class="jdc-details">
+                                <span class="jdc-detail"><i class="fas fa-map-marker-alt"></i> ${job.location || 'Not specified'}</span>
+                                <span class="jdc-detail jdc-salary"><i class="fas fa-coins"></i> ${salary}</span>
+                            </div>
+
+                            <div class="jdc-description">
+                                <h4>Job Description</h4>
+                                <p>${job.description || 'No description provided'}</p>
+                            </div>
+                            
+                            ${job.requirements ? `
+                                <div class="jdc-requirements">
+                                    <h4>Requirements</h4>
+                                    <p>${job.requirements}</p>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="jdc-actions">
+                                <button class="btn btn-primary" onclick="authSystem.applyForJob('${job.id}')" id="apply-btn-detail-${job.id}">
+                                    <i class="fas fa-paper-plane"></i> Apply Now
+                                </button>
+                                <button class="btn btn-outline" onclick="showDashboardSection('jobs')">
+                                    <i class="fas fa-arrow-left"></i> Back to Jobs
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
             
             document.getElementById('dashboardContent').innerHTML = jobDetailsHTML;
+            
+            // Check application status for this job
+            setTimeout(async () => {
+                try {
+                    const appStatus = await apiService.checkApplicationStatus(jobId);
+                    const applyBtn = document.getElementById(`apply-btn-detail-${jobId}`);
+                    if (applyBtn) {
+                        if (appStatus && appStatus.applied) {
+                            applyBtn.innerHTML = '<i class="fas fa-check"></i> Applied';
+                            applyBtn.disabled = true;
+                            applyBtn.classList.remove('btn-primary');
+                            applyBtn.classList.add('btn-success');
+                        }
+                    }
+                } catch (error) {
+                    console.log('Error checking application status:', error);
+                }
+            }, 500);
         } catch (error) {
             this.showAlert(error.message, 'error');
         }
     }
 
     filterJobs() {
-        const location = document.getElementById('jobSearchLocation').value.toLowerCase();
-        const jobType = document.getElementById('jobSearchType').value;
-        const jobCards = document.querySelectorAll('.job-card');
+        const searchValue = document.getElementById('jobSearchInput')?.value.toLowerCase() || '';
+        const typeValue = document.getElementById('typeFilter')?.value.toLowerCase() || '';
+        const locationValue = document.getElementById('locationFilter')?.value.toLowerCase() || '';
+        const jobCards = document.querySelectorAll('.job-card-modern');
         
         jobCards.forEach(card => {
-            const cardLocation = card.querySelector('.fa-map-marker-alt').parentElement.textContent.toLowerCase();
-            const cardType = card.querySelector('.fa-clock').parentElement.textContent.toLowerCase().trim();
+            const title = card.querySelector('.jcm-title')?.textContent.toLowerCase() || '';
+            const location = card.querySelector('.jcm-detail')?.textContent.toLowerCase() || '';
+            const type = card.getAttribute('data-type')?.toLowerCase() || '';
+            const cardLocation = card.getAttribute('data-location')?.toLowerCase() || '';
             
-            const locationMatch = !location || cardLocation.includes(location);
-            const typeMatch = !jobType || cardType.includes(jobType);
+            const matchesSearch = !searchValue || title.includes(searchValue) || location.includes(searchValue);
+            const matchesType = !typeValue || type === typeValue;
+            const matchesLocation = !locationValue || cardLocation.includes(locationValue);
             
-            card.style.display = locationMatch && typeMatch ? 'block' : 'none';
+            if (matchesSearch && matchesType && matchesLocation) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
         });
     }
 
-    showAlert(message, type = 'info') {
+    showAlert(message, type = 'info', duration = 5000) {
+        const alertContainer = document.getElementById('alert-container') || (() => {
+            const container = document.createElement('div');
+            container.id = 'alert-container';
+            container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 10001; display: flex; flex-direction: column; gap: 12px; pointer-events: none;';
+            document.body.appendChild(container);
+            return container;
+        })();
+
         const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.textContent = message;
-        alertDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            max-width: 400px;
-            padding: 1rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            animation: slideIn 0.3s ease-out;
+        alertDiv.className = `custom-alert custom-alert-${type}`;
+        alertDiv.style.pointerEvents = 'auto';
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            info: 'fa-info-circle',
+            warning: 'fa-exclamation-triangle'
+        };
+
+        alertDiv.innerHTML = `
+            <div class="alert-icon">
+                <i class="fas ${icons[type] || icons.info}"></i>
+            </div>
+            <div class="alert-content">
+                <p>${message}</p>
+            </div>
+            <div class="alert-progress"></div>
         `;
         
-        // Add color styles based on type
-        switch(type) {
-            case 'success':
-                alertDiv.style.background = '#d1fae5';
-                alertDiv.style.color = '#065f46';
-                alertDiv.style.border = '1px solid #10b981';
-                break;
-            case 'error':
-                alertDiv.style.background = '#fee2e2';
-                alertDiv.style.color = '#991b1b';
-                alertDiv.style.border = '1px solid #ef4444';
-                break;
-            default:
-                alertDiv.style.background = '#dbeafe';
-                alertDiv.style.color = '#1e40af';
-                alertDiv.style.border = '1px solid #3b82f6';
-        }
+        alertContainer.appendChild(alertDiv);
         
-        document.body.appendChild(alertDiv);
-        
-        // Auto-remove after 5 seconds
+        // Timer for progress bar
+        const progress = alertDiv.querySelector('.alert-progress');
+        progress.style.transition = `width ${duration}ms linear`;
+        setTimeout(() => progress.style.width = '0%', 10);
+
+        // Auto-remove
         setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.style.animation = 'slideOut 0.3s ease-out';
-                setTimeout(() => {
-                    if (alertDiv.parentNode) {
-                        alertDiv.remove();
-                    }
-                }, 300);
-            }
-        }, 5000);
+            alertDiv.style.animation = 'alertSlideOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
+            setTimeout(() => alertDiv.remove(), 400);
+        }, duration);
         
-        // Add animation styles if not already present
-        if (!document.querySelector('#alert-animations')) {
+        // Add CSS if not exists
+        if (!document.getElementById('dialog-styles')) {
             const style = document.createElement('style');
-            style.id = 'alert-animations';
+            style.id = 'dialog-styles';
             style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
+                .custom-alert {
+                    min-width: 320px;
+                    max-width: 420px;
+                    background: rgba(255, 255, 255, 0.95);
+                    backdrop-filter: blur(10px);
+                    border-radius: 12px;
+                    padding: 16px;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                    border-left: 4px solid #3b82f6;
+                    position: relative;
+                    overflow: hidden;
+                    animation: alertSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 }
-                @keyframes slideOut {
-                    from {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                    to {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
+                .custom-alert-success { border-left-color: #10b981; }
+                .custom-alert-error { border-left-color: #ef4444; }
+                .custom-alert-warning { border-left-color: #f59e0b; }
+                
+                .alert-icon { font-size: 1.5rem; flex-shrink: 0; }
+                .custom-alert-success .alert-icon { color: #10b981; }
+                .custom-alert-error .alert-icon { color: #ef4444; }
+                .custom-alert-info .alert-icon { color: #3b82f6; }
+                .custom-alert-warning .alert-icon { color: #f59e0b; }
+                
+                .alert-content p { margin: 0; font-size: 0.95rem; font-weight: 500; color: #1e293b; line-height: 1.4; }
+                
+                .alert-progress {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    height: 3px;
+                    width: 100%;
+                    background: rgba(0,0,0,0.05);
+                }
+                .custom-alert-success .alert-progress { background: #d1fae5; }
+                .custom-alert-error .alert-progress { background: #fee2e2; }
+                
+                @keyframes alertSlideIn {
+                    from { transform: translateX(120%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes alertSlideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(120%); opacity: 0; }
                 }
             `;
             document.head.appendChild(style);
         }
     }
+
+    showConfirm(message, title = "Confirm Action", confirmText = "Continue", cancelText = "Cancel") {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'confirm-overlay-premium';
+            
+            overlay.innerHTML = `
+                <div class="confirm-card-premium">
+                    <div class="confirm-header">
+                        <div class="confirm-icon-wrap">
+                            <i class="fas fa-question"></i>
+                        </div>
+                        <h3>${title}</h3>
+                    </div>
+                    <div class="confirm-body">
+                        <p>${message}</p>
+                    </div>
+                    <div class="confirm-footer">
+                        <button class="confirm-btn confirm-btn-cancel">${cancelText}</button>
+                        <button class="confirm-btn confirm-btn-primary">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            const card = overlay.querySelector('.confirm-card-premium');
+            const cancelBtn = overlay.querySelector('.confirm-btn-cancel');
+            const confirmBtn = overlay.querySelector('.confirm-btn-primary');
+            
+            const closeConfirm = (result) => {
+                card.style.transform = 'scale(0.95) translateY(10px)';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.remove();
+                    resolve(result);
+                }, 300);
+            };
+            
+            cancelBtn.onclick = () => closeConfirm(false);
+            confirmBtn.onclick = () => closeConfirm(true);
+            overlay.onclick = (e) => { if(e.target === overlay) closeConfirm(false); };
+            
+            // Add CSS if not exists
+            if (!document.getElementById('confirm-styles')) {
+                const style = document.createElement('style');
+                style.id = 'confirm-styles';
+                style.textContent = `
+                    .confirm-overlay-premium {
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(15, 23, 42, 0.6);
+                        backdrop-filter: blur(8px);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 10002;
+                        transition: opacity 0.3s ease;
+                        padding: 20px;
+                    }
+                    .confirm-card-premium {
+                        background: white;
+                        border-radius: 24px;
+                        width: 100%;
+                        max-width: 400px;
+                        padding: 32px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                        transform: scale(1) translateY(0);
+                        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                        text-align: center;
+                    }
+                    .confirm-icon-wrap {
+                        width: 64px;
+                        height: 64px;
+                        background: #eff6ff;
+                        color: #3b82f6;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 1.5rem;
+                        margin: 0 auto 20px;
+                    }
+                    .confirm-header h3 {
+                        font-size: 1.5rem;
+                        font-weight: 700;
+                        color: #0f172a;
+                        margin-bottom: 12px;
+                        font-family: 'Outfit', sans-serif;
+                    }
+                    .confirm-body p {
+                        font-size: 1.05rem;
+                        color: #64748b;
+                        line-height: 1.6;
+                        margin-bottom: 32px;
+                    }
+                    .confirm-footer {
+                        display: flex;
+                        gap: 12px;
+                    }
+                    .confirm-btn {
+                        flex: 1;
+                        padding: 12px 24px;
+                        border-radius: 12px;
+                        font-weight: 600;
+                        font-size: 0.95rem;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        border: none;
+                    }
+                    .confirm-btn-cancel {
+                        background: #f1f5f9;
+                        color: #475569;
+                    }
+                    .confirm-btn-cancel:hover { background: #e2e8f0; }
+                    .confirm-btn-primary {
+                        background: #2563eb;
+                        color: white;
+                        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+                    }
+                    .confirm-btn-primary:hover {
+                        background: #1d4ed8;
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        });
+    }
 }
 
 // Mobile sidebar toggle function
 function toggleMobileSidebar() {
-    const sidebar = document.querySelector('.dashboard-sidebar');
+    const sidebar = document.querySelector('.dashboard-sidebar, .app-sidebar');
     const overlay = document.querySelector('.mobile-sidebar-overlay');
     const body = document.body;
     

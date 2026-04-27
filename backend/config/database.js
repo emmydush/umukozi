@@ -1,26 +1,49 @@
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  max: 20, // maximum number of connections in the pool
-  idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
-  connectionTimeoutMillis: 2000, // how long to wait when connecting a new client
+// Create SQLite database connection
+const db = new sqlite3.Database(path.join(__dirname, '..', 'umukozi.db'), (err) => {
+  if (err) {
+    console.error('❌ Database connection error:', err);
+  } else {
+    console.log('🔌 Connected to SQLite database');
+  }
 });
 
-// Test database connection
-pool.on('connect', () => {
-  console.log('🔌 Connected to PostgreSQL database');
-});
+// Enable foreign keys
+db.run('PRAGMA foreign_keys = ON');
 
-pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
-});
+// Wrap query method to return promises
+const query = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ rows });
+      }
+    });
+  });
+};
+
+// Wrap run method for INSERT/UPDATE/DELETE operations
+const run = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve({ 
+          id: this.lastID, 
+          changes: this.changes 
+        });
+      }
+    });
+  });
+};
 
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  pool
+  query,
+  run,
+  db
 };

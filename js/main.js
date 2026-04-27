@@ -90,6 +90,79 @@ window.toggleMobileSidebar = function() {
     }
 }
 
+// Toggle Notifications Dropdown
+window.toggleNotifications = function() {
+    const notificationsDropdown = document.getElementById('notificationsDropdown');
+    const profileDropdown = document.getElementById('profileDropdown');
+    
+    if (notificationsDropdown) {
+        const isOpen = notificationsDropdown.classList.contains('show');
+        
+        // Close all dropdowns
+        if (notificationsDropdown) notificationsDropdown.classList.remove('show');
+        if (profileDropdown) profileDropdown.classList.remove('show');
+        
+        // Open notifications if it was closed
+        if (!isOpen) {
+            notificationsDropdown.classList.add('show');
+        }
+    }
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function closeDropdowns(e) {
+        if (!e.target.closest('.notif-btn') && !e.target.closest('.notifications-dropdown')) {
+            notificationsDropdown.classList.remove('show');
+            document.removeEventListener('click', closeDropdowns);
+        }
+    });
+}
+
+// Toggle Profile Dropdown
+window.toggleProfileMenu = function() {
+    const profileDropdown = document.getElementById('profileDropdown');
+    const notificationsDropdown = document.getElementById('notificationsDropdown');
+    
+    if (profileDropdown) {
+        const isOpen = profileDropdown.classList.contains('show');
+        
+        // Close all dropdowns
+        if (profileDropdown) profileDropdown.classList.remove('show');
+        if (notificationsDropdown) notificationsDropdown.classList.remove('show');
+        
+        // Open profile if it was closed
+        if (!isOpen) {
+            profileDropdown.classList.add('show');
+        }
+    }
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function closeDropdowns(e) {
+        if (!e.target.closest('.user-info') && !e.target.closest('.profile-dropdown')) {
+            profileDropdown.classList.remove('show');
+            document.removeEventListener('click', closeDropdowns);
+        }
+    });
+}
+
+// Mark all notifications as read
+window.markAllNotificationsRead = function() {
+    const notificationItems = document.querySelectorAll('.notification-item.unread');
+    const badge = document.querySelector('.notif-btn .badge');
+    
+    notificationItems.forEach(item => {
+        item.classList.remove('unread');
+    });
+    
+    if (badge) {
+        badge.style.display = 'none';
+    }
+    
+    // Show success message
+    if (typeof authSystem !== 'undefined' && authSystem.showAlert) {
+        authSystem.showAlert('All notifications marked as read', 'success');
+    }
+}
+
 // Check authentication state
 function checkAuthState() {
     // Don't interfere with authSystem - let it handle dashboard display
@@ -129,6 +202,12 @@ function showModal(content) {
     
     if (modal && authContent) {
         authContent.innerHTML = content;
+        
+        // Apply translations to the new content
+        if (typeof i18nInstance !== 'undefined') {
+            i18nInstance.applyLanguage(i18nInstance.getLanguage());
+        }
+        
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
     }
@@ -154,24 +233,27 @@ window.onclick = function(event) {
 function showLogin() {
     const loginHTML = `
         <div class="auth-form">
-            <h2>Login</h2>
+            <div class="auth-logo">
+                <img src="images/logo.png" alt="Umukozi" class="logo-img">
+            </div>
+            <h2 data-i18n="auth.login">Login</h2>
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <label for="loginEmail">Email</label>
+                    <label for="loginEmail" data-i18n="auth.email">Email</label>
                     <input type="email" id="loginEmail" name="email" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="loginPassword">Password</label>
+                    <label for="loginPassword" data-i18n="auth.password">Password</label>
                     <input type="password" id="loginPassword" name="password" required>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-full">Login</button>
+                <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.login">Login</button>
             </form>
             
             <p class="auth-switch">
-                Don't have an account? 
-                <a href="#" onclick="showRegister()">Register here</a>
+                <span data-i18n="auth.noAccount">Don't have an account?</span> 
+                <a href="#" onclick="showRegister()" data-i18n="auth.registerHere">Register here</a>
             </p>
         </div>
     `;
@@ -183,47 +265,50 @@ function showLogin() {
 function showRegister() {
     const registerHTML = `
         <div class="auth-form">
-            <h2>Register</h2>
+            <div class="auth-logo">
+                <img src="images/logo.png" alt="Umukozi" class="logo-img">
+            </div>
+            <h2 data-i18n="auth.register">Register</h2>
             <form id="registerForm" onsubmit="handleRegister(event)">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="registerName">Full Name</label>
+                        <label for="registerName" data-i18n="auth.fullName">Full Name</label>
                         <input type="text" id="registerName" name="name" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="registerPhone">Phone Number</label>
+                        <label for="registerPhone" data-i18n="auth.phone">Phone Number</label>
                         <input type="tel" id="registerPhone" name="phone" placeholder="e.g., 0788123456" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="registerEmail">Email</label>
+                        <label for="registerEmail" data-i18n="auth.email">Email</label>
                         <input type="email" id="registerEmail" name="email" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="registerPassword">Password</label>
+                        <label for="registerPassword" data-i18n="auth.password">Password</label>
                         <input type="password" id="registerPassword" name="password" required minlength="6">
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="userType">I am a:</label>
+                    <label for="userType" data-i18n="auth.userType">I am a:</label>
                     <select id="userType" name="userType" required>
-                        <option value="">Select user type</option>
-                        <option value="worker">Household Worker</option>
-                        <option value="employer">Employer</option>
+                        <option value="" data-i18n="auth.selectUserType">Select user type</option>
+                        <option value="worker" data-i18n="auth.worker">Household Worker</option>
+                        <option value="employer" data-i18n="auth.employer">Employer</option>
                     </select>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-full">Register</button>
+                <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.register">Register</button>
             </form>
             
             <p class="auth-switch">
-                Already have an account? 
-                <a href="#" onclick="showLogin()">Login here</a>
+                <span data-i18n="auth.haveAccount">Already have an account?</span> 
+                <a href="#" onclick="showLogin()" data-i18n="auth.loginHere">Login here</a>
             </p>
         </div>
     `;
@@ -327,7 +412,21 @@ async function handleRegister(event) {
 
 // Dashboard section switching
 window.showDashboardSection = async function(section) {
-    const buttons = document.querySelectorAll('.dashboard-nav button');
+    // Ensure dashboard content element exists
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) {
+        console.error('dashboardContent element not found in showDashboardSection');
+        return;
+    }
+    
+    // Ensure user is authenticated
+    if (!authSystem || !authSystem.currentUser) {
+        console.error('User not authenticated in showDashboardSection');
+        dashboardContent.innerHTML = '<div class="alert alert-error">Please log in to view this content.</div>';
+        return;
+    }
+    
+    const buttons = document.querySelectorAll('.dashboard-nav button, .nav-item');
     
     // Deactivate all buttons
     buttons.forEach(btn => btn.classList.remove('active'));
@@ -340,9 +439,16 @@ window.showDashboardSection = async function(section) {
     
     if (activeButton) {
         activeButton.classList.add('active');
+        
+        // Update page title if element exists
+        const pageTitle = document.getElementById('pageTitle');
+        if (pageTitle) {
+            const span = activeButton.querySelector('span');
+            // Use span text if it exists (new nav-item), otherwise use button textContent (old UI)
+            pageTitle.textContent = span ? span.textContent : activeButton.textContent.trim();
+        }
     }
     
-    const dashboardContent = document.getElementById('dashboardContent');
     const user = authSystem.currentUser;
     
     if (user.userType === 'worker') {
@@ -353,29 +459,41 @@ window.showDashboardSection = async function(section) {
                         <div class="overview-welcome">
                             <div class="overview-avatar">${user.name.charAt(0).toUpperCase()}</div>
                             <div>
-                                <h2>Welcome back, ${user.name.split(' ')[0]}! 👋</h2>
-                                <p>Here's a quick overview of your Umukozi account.</p>
+                                <h2 data-i18n="dashboard.welcomeBack" data-i18n-params='{"name": "${user.name.split(' ')[0]}"}'>Welcome back, ${user.name.split(' ')[0]}! 👋</h2>
+                                <p data-i18n="dashboard.workerWelcomeSub">Here's a quick overview of your Umukozi account.</p>
                             </div>
                         </div>
                         <div class="overview-cards">
                             <div class="ov-card" onclick="showDashboardSection('profile')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#eff6ff;color:#2563eb"><i class="fas fa-user-circle"></i></div>
-                                <div class="ov-body"><span class="ov-label">My Profile</span><span class="ov-hint">View &amp; edit your details</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.profile">My Profile</span>
+                                    <span class="ov-hint" data-i18n="dashboard.profileHint">View &amp; edit your details</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('jobs')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#f0fdf4;color:#16a34a"><i class="fas fa-briefcase"></i></div>
-                                <div class="ov-body"><span class="ov-label">Available Jobs</span><span class="ov-hint">Browse open positions</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.jobs">Available Jobs</span>
+                                    <span class="ov-hint" data-i18n="dashboard.jobsHint">Browse open positions</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('applications')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#fff7ed;color:#ea580c"><i class="fas fa-paper-plane"></i></div>
-                                <div class="ov-body"><span class="ov-label">My Applications</span><span class="ov-hint">Track your job applications</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.applications">My Applications</span>
+                                    <span class="ov-hint" data-i18n="dashboard.appsHint">Track your job applications</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('stats')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#fdf4ff;color:#9333ea"><i class="fas fa-chart-line"></i></div>
-                                <div class="ov-body"><span class="ov-label">Statistics</span><span class="ov-hint">Profile views &amp; activity</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.activity">Statistics</span>
+                                    <span class="ov-hint" data-i18n="dashboard.statsHint">Profile views &amp; activity</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                         </div>
@@ -405,7 +523,7 @@ window.showDashboardSection = async function(section) {
                 dashboardContent.innerHTML = getSettingsSection();
                 break;
         }
-    } else {
+    } else if (user.userType === 'employer') {
         switch(section) {
             case 'overview':
                 dashboardContent.innerHTML = `
@@ -413,29 +531,41 @@ window.showDashboardSection = async function(section) {
                         <div class="overview-welcome">
                             <div class="overview-avatar">${user.name.charAt(0).toUpperCase()}</div>
                             <div>
-                                <h2>Welcome back, ${user.name.split(' ')[0]}! 👋</h2>
-                                <p>Here's a quick overview of your employer account.</p>
+                                <h2 data-i18n="dashboard.welcomeBack" data-i18n-params='{"name": "${user.name.split(' ')[0]}"}'>Welcome back, ${user.name.split(' ')[0]}! 👋</h2>
+                                <p data-i18n="dashboard.employerWelcomeSub">Here's a quick overview of your employer account.</p>
                             </div>
                         </div>
                         <div class="overview-cards">
                             <div class="ov-card" onclick="showDashboardSection('search')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#eff6ff;color:#2563eb"><i class="fas fa-users"></i></div>
-                                <div class="ov-body"><span class="ov-label">Find Workers</span><span class="ov-hint">Search available workers</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.searchWorkers">Find Workers</span>
+                                    <span class="ov-hint" data-i18n="dashboard.searchHint">Search available workers</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('post')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#f0fdf4;color:#16a34a"><i class="fas fa-plus-circle"></i></div>
-                                <div class="ov-body"><span class="ov-label">Post a Job</span><span class="ov-hint">Create a new job listing</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.postJob">Post a Job</span>
+                                    <span class="ov-hint" data-i18n="dashboard.postHint">Create a new job listing</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('manage')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#fff7ed;color:#ea580c"><i class="fas fa-tasks"></i></div>
-                                <div class="ov-body"><span class="ov-label">Manage Jobs</span><span class="ov-hint">Edit or deactivate listings</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.manageJobs">Manage Jobs</span>
+                                    <span class="ov-hint" data-i18n="dashboard.manageHint">Edit or deactivate listings</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                             <div class="ov-card" onclick="showDashboardSection('applications')" style="cursor:pointer">
                                 <div class="ov-icon" style="background:#fdf4ff;color:#9333ea"><i class="fas fa-inbox"></i></div>
-                                <div class="ov-body"><span class="ov-label">Applications</span><span class="ov-hint">Review incoming applications</span></div>
+                                <div class="ov-body">
+                                    <span class="ov-label" data-i18n="dashboard.inbox">Applications</span>
+                                    <span class="ov-hint" data-i18n="dashboard.appsRecvHint">Review incoming applications</span>
+                                </div>
                                 <i class="fas fa-chevron-right ov-arrow"></i>
                             </div>
                         </div>
@@ -443,6 +573,8 @@ window.showDashboardSection = async function(section) {
                 break;
             case 'search':
                 dashboardContent.innerHTML = authSystem.getEmployerSearchSection();
+                // Automatically load all workers when search section is opened
+                setTimeout(() => authSystem.searchWorkers(), 100);
                 break;
             case 'post':
                 dashboardContent.innerHTML = getPostJobSection();
@@ -457,6 +589,30 @@ window.showDashboardSection = async function(section) {
                 break;
             case 'settings':
                 dashboardContent.innerHTML = getSettingsSection();
+                break;
+        }
+    } else if (user.userType === 'admin') {
+        switch(section) {
+            case 'overview':
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading admin stats...</div>';
+                getAdminOverviewSection().then(html => dashboardContent.innerHTML = html);
+                break;
+            case 'workers':
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading workers...</div>';
+                getAdminWorkersSection().then(html => dashboardContent.innerHTML = html);
+                break;
+            case 'payments':
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading payments...</div>';
+                getAdminPaymentsSection().then(html => dashboardContent.innerHTML = html);
+                break;
+            case 'users':
+                dashboardContent.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+                getAdminUsersSection().then(html => dashboardContent.innerHTML = html);
+                break;
+            case 'settings':
+                dashboardContent.innerHTML = getAdminSettingsSection();
+                // Load existing settings after rendering
+                loadAdminSettings();
                 break;
         }
     }
@@ -727,19 +883,19 @@ async function getManageJobsSection() {
         
         return `
             <div class="manage-jobs-section">
-                <h2>Manage My Jobs</h2>
+                <h2 data-i18n="dashboard.manageJobs">Manage My Jobs</h2>
                 <div class="job-stats">
                     <div class="stat-card">
                         <h3>${jobs.length}</h3>
-                        <p>Total Jobs</p>
+                        <p data-i18n="dashboard.totalJobs">Total Jobs</p>
                     </div>
                     <div class="stat-card">
                         <h3>${jobs.filter(job => job.is_active).length}</h3>
-                        <p>Active Jobs</p>
+                        <p data-i18n="dashboard.activeJobs">Active Jobs</p>
                     </div>
                     <div class="stat-card">
                         <h3>${jobs.filter(job => !job.is_active).length}</h3>
-                        <p>Inactive Jobs</p>
+                        <p data-i18n="dashboard.inactiveJobs">Inactive Jobs</p>
                     </div>
                 </div>
                 <div class="job-listings">
@@ -748,10 +904,11 @@ async function getManageJobsSection() {
             </div>
         `;
     } catch (error) {
+        console.error('Error loading employer jobs:', error);
         return `
             <div class="manage-jobs-section">
                 <h2>Manage My Jobs</h2>
-                <div class="alert alert-error">Failed to load jobs. Please try again.</div>
+                <div class="alert alert-error">Failed to load jobs: ${error.message}</div>
             </div>
         `;
     }
@@ -833,17 +990,27 @@ async function getEmployerApplicationsSection() {
             </div>
         `;
     } catch (error) {
+        console.error('Error loading employer applications:', error);
         return `<div class="alert alert-error">Failed to load applications: ${error.message}</div>`;
     }
 }
 
 async function updateAppStatus(id, status) {
     try {
-        await apiService.updateApplicationStatus(id, status);
+        console.log('=== UPDATING APPLICATION STATUS ===');
+        console.log('Application ID:', id);
+        console.log('New Status:', status);
+        
+        const response = await apiService.updateApplicationStatus(id, status);
+        console.log('Status update response:', response);
+        
         authSystem.showAlert(`Application ${status} successfully!`, 'success');
         showDashboardSection('applications');
     } catch (error) {
-        authSystem.showAlert(error.message, 'error');
+        console.error('=== APPLICATION STATUS UPDATE FAILED ===');
+        console.error('Error details:', error);
+        console.error('Error message:', error.message);
+        authSystem.showAlert(`Failed to update application status: ${error.message}`, 'error');
     }
 }
 
@@ -951,7 +1118,8 @@ async function toggleJobStatus(jobId, isActive) {
 }
 
 async function deleteJob(jobId) {
-    if (confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+    const confirmed = await authSystem.showConfirm('Are you sure you want to delete this job? This action cannot be undone.', 'Delete Job', 'Delete');
+    if (confirmed) {
         try {
             await apiService.deleteJob(jobId);
             authSystem.showAlert('Job deleted successfully!', 'success');
@@ -1203,5 +1371,613 @@ async function handlePasswordChange(event) {
         event.target.reset();
     } catch (error) {
         authSystem.showAlert(error.message, 'error');
+    }
+}
+
+// ==========================================
+// ADMIN DASHBOARD SECTIONS
+// ==========================================
+
+async function getAdminOverviewSection() {
+    try {
+        const stats = await apiService.getAdminStats();
+        
+        return `
+            <div class="dashboard-content">
+                <div class="section-hero" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="hero-text">
+                        <h1>System Health & Statistics</h1>
+                        <p>Real-time monitor of Umukozi platform activities.</p>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="mini-stat">
+                            <span class="num">${stats.total_jobs || 0}</span>
+                            <span class="lab">Total Jobs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ws-grid">
+                    <div class="ws-card ws-card--blue" onclick="showDashboardSection('workers')" style="cursor:pointer">
+                        <div class="ws-icon"><i class="fas fa-users-cog"></i></div>
+                        <span class="ws-label" data-i18n="dashboard.registeredWorkers">Registered Workers</span>
+                        <span class="ws-num">${stats.workers}</span>
+                        <span class="ws-hint" data-i18n="dashboard.viewAllWorkers">View all workers</span>
+                    </div>
+                    
+                    <div class="ws-card ws-card--orange" onclick="showDashboardSection('workers')" style="cursor:pointer">
+                        <div class="ws-icon"><i class="fas fa-user-shield"></i></div>
+                        <span class="ws-label" data-i18n="dashboard.pendingVerification">Verification Pending</span>
+                        <span class="ws-num">${stats.pending_workers}</span>
+                        <span class="ws-hint" data-i18n="dashboard.actionRequired">Action required</span>
+                    </div>
+                    
+                    <div class="ws-card ws-card--green" style="cursor:default">
+                        <div class="ws-icon"><i class="fas fa-building"></i></div>
+                        <span class="ws-label" data-i18n="dashboard.totalEmployers">Total Employers</span>
+                        <span class="ws-num">${stats.employers}</span>
+                        <span class="ws-hint" data-i18n="dashboard.enterpriseAccounts">Enterprise accounts</span>
+                    </div>
+                    
+                    <div class="ws-card ws-card--purple" onclick="showDashboardSection('payments')" style="cursor:pointer">
+                        <div class="ws-icon"><i class="fas fa-wallet"></i></div>
+                        <span class="ws-label" data-i18n="dashboard.pendingPayments">Pending Payments</span>
+                        <span class="ws-num">${stats.pending_payments}</span>
+                        <span class="ws-hint" data-i18n="dashboard.verifyTransactions">Verify transactions</span>
+                    </div>
+                </div>
+
+                <div class="ws-insights-card" style="margin-top: 2rem;">
+                    <div class="wsi-icon"><i class="fas fa-lightbulb"></i></div>
+                    <div class="wsi-content">
+                        <h3 data-i18n="dashboard.adminInsight">Administrative Insight</h3>
+                        <p data-i18n="dashboard.adminInsightSub" data-i18n-params='{"workers": "${stats.pending_workers}", "payments": "${stats.pending_payments}"}'>There are currently <strong>${stats.pending_workers}</strong> workers waiting for profile verification and <strong>${stats.pending_payments}</strong> payment references that need to be manually confirmed with MTN records.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        return `<div class="alert alert-error">Failed to load admin stats: ${error.message}</div>`;
+    }
+}
+
+async function getAdminWorkersSection() {
+    try {
+        const response = await apiService.getAdminWorkers();
+        const workers = response.workers || [];
+        
+        const workerRows = workers.map(w => `
+            <tr>
+                <td>
+                    <div class="applicant-info">
+                        <div class="applicant-avatar">${w.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <h4>${w.name}</h4>
+                            <p>${w.email}</p>
+                            <p>${w.phone}</p>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    ${w.national_id ? `<span class="badge" style="background:#eff6ff;color:#2563eb">${w.national_id}</span>` : '<span class="text-muted">None</span>'}
+                </td>
+                <td>
+                    ${w.is_verified 
+                        ? '<span class="worker-status available"><i class="fas fa-check-circle"></i> Verified</span>' 
+                        : '<span class="worker-status unavailable"><i class="fas fa-clock"></i> Pending</span>'
+                    }
+                </td>
+                <td class="action-cell">
+                    ${w.is_verified 
+                        ? `<button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#ef4444" onclick="adminVerifyWorker('${w.id}', false)">Revoke</button>`
+                        : `<button class="btn btn-primary btn-sm" onclick="adminVerifyWorker('${w.id}', true)">Verify</button>`
+                    }
+                    ${w.id_photo 
+                        ? `<a href="${authSystem.getImageUrl(w.id_photo)}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-id-card"></i> View ID</a>`
+                        : ''
+                    }
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="dashboard-content">
+                <div class="section-header" style="margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;"><i class="fas fa-user-check" style="color: #3b82f6; margin-right: 0.75rem;"></i> Worker Verifications</h2>
+                    <p style="color: #64748b; font-size: 1rem; margin: 0;">Review and verify worker profiles and national IDs.</p>
+                </div>
+                
+                <div class="modern-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Worker Details</th>
+                                <th>National ID</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${workerRows || '<tr><td colspan="4" class="text-center">No workers found.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        return `<div class="alert alert-error">Failed to load workers: ${error.message}</div>`;
+    }
+}
+
+async function adminVerifyWorker(workerId, isVerified) {
+    const action = isVerified ? 'VERIFY' : 'REVOKE VERIFICATION for';
+    const btnText = isVerified ? 'Verify' : 'Revoke';
+    const confirmed = await authSystem.showConfirm(`Are you sure you want to ${action} this worker?`, 'Confirm Action', btnText);
+    if (!confirmed) return;
+    
+    try {
+        await apiService.verifyWorker(workerId, isVerified);
+        authSystem.showAlert(`Worker successfully ${isVerified ? 'verified' : 'unverified'}.`, 'success');
+        showDashboardSection('workers');
+    } catch (error) {
+        authSystem.showAlert(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function getAdminPaymentsSection() {
+    try {
+        const response = await apiService.getAdminPayments();
+        const payments = response.payments || [];
+        
+        const paymentRows = payments.map(p => `
+            <tr>
+                <td>
+                    <strong>TX: ${p.transaction_ref}</strong><br>
+                    <small>${new Date(p.created_at).toLocaleDateString()}</small>
+                </td>
+                <td>
+                    ${p.employer_name}<br>
+                    <small>${p.employer_phone}</small>
+                </td>
+                <td>
+                    ${p.worker_name}
+                </td>
+                <td>
+                    <span class="badge" style="background:#f0fdf4;color:#16a34a">${p.amount} RWF</span>
+                </td>
+                <td>
+                    <span class="worker-status ${p.status === 'verified' ? 'available' : p.status === 'rejected' ? 'unavailable' : 'unhired'}">
+                        ${p.status.toUpperCase()}
+                    </span>
+                </td>
+                <td class="action-cell">
+                    ${p.status === 'pending' ? `
+                        <button class="btn btn-primary btn-sm" onclick="adminVerifyPayment('${p.id}', 'verified')">Approve</button>
+                        <button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#ef4444" onclick="adminVerifyPayment('${p.id}', 'rejected')">Reject</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="dashboard-content">
+                <div class="section-header" style="margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;"><i class="fas fa-money-check-alt" style="color: #10b981; margin-right: 0.75rem;"></i> <span data-i18n="dashboard.payments">Payment Verification</span></h2>
+                    <p style="color: #64748b; font-size: 1rem; margin: 0;" data-i18n="dashboard.verifyPaymentsSub">Verify MTN transaction references from employers.</p>
+                </div>
+                
+                <div class="modern-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="dashboard.transaction">Transaction</th>
+                                <th data-i18n="dashboard.employer">Employer</th>
+                                <th data-i18n="dashboard.worker">Worker</th>
+                                <th data-i18n="dashboard.amount">Amount</th>
+                                <th data-i18n="dashboard.status">Status</th>
+                                <th data-i18n="dashboard.actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${paymentRows || '<tr><td colspan="6" class="text-center">No payment records found.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        return `<div class="alert alert-error">Failed to load payments: ${error.message}</div>`;
+    }
+}
+
+async function adminVerifyPayment(paymentId, status) {
+    const confirmed = await authSystem.showConfirm(`Are you sure you want to mark this payment as ${status.toUpperCase()}?`, 'Update Payment', 'Yes');
+    if (!confirmed) return;
+    
+    try {
+        await apiService.verifyPaymentById(paymentId, status);
+        authSystem.showAlert(`Payment successfully marked as ${status}.`, 'success');
+        showDashboardSection('payments');
+    } catch (error) {
+        authSystem.showAlert(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function getAdminUsersSection() {
+    try {
+        const response = await apiService.getAdminUsers();
+        const users = response.users || [];
+        
+        const userRows = users.map(u => `
+            <tr>
+                <td>
+                    <div class="applicant-info">
+                        <div class="applicant-avatar">${u.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <h4>${u.name}</h4>
+                            <p>${u.email}</p>
+                            <p>${u.phone || 'N/A'}</p>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge">${u.user_type.toUpperCase()}</span>
+                </td>
+                <td>
+                    ${u.is_active === false
+                        ? '<span class="worker-status unavailable"><i class="fas fa-ban"></i> Blocked</span>' 
+                        : '<span class="worker-status available"><i class="fas fa-check-circle"></i> Active</span>'
+                    }
+                </td>
+                <td class="action-cell">
+                    ${u.is_active === false
+                        ? `<button class="btn btn-primary btn-sm" onclick="adminUnblockUser('${u.id}')">Unblock</button>`
+                        : `<button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#ef4444" onclick="adminBlockUser('${u.id}')">Block</button>`
+                    }
+                    <button class="btn btn-danger btn-sm" onclick="adminDeleteUser('${u.id}')"><i class="fas fa-trash"></i> Delete</button>
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+            <div class="dashboard-content">
+                <div class="section-header" style="margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;"><i class="fas fa-users-cog" style="color: #8b5cf6; margin-right: 0.75rem;"></i> <span data-i18n="dashboard.manageUsers">User Management</span></h2>
+                    <p style="color: #64748b; font-size: 1rem; margin: 0;" data-i18n="dashboard.manageUsersSub">Manage, block, and delete employers and workers.</p>
+                </div>
+                
+                <div class="modern-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th data-i18n="dashboard.userDetails">User Details</th>
+                                <th data-i18n="dashboard.type">Type</th>
+                                <th data-i18n="dashboard.status">Status</th>
+                                <th data-i18n="dashboard.actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${userRows || '<tr><td colspan="4" class="text-center">No users found.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        return `<div class="alert alert-error">Failed to load users: ${error.message}</div>`;
+    }
+}
+
+async function adminBlockUser(userId) {
+    const confirmed = await authSystem.showConfirm('Are you sure you want to block this user?', 'Block User', 'Block');
+    if (!confirmed) return;
+    try {
+        await apiService.blockUser(userId);
+        authSystem.showAlert('User blocked successfully.', 'success');
+        showDashboardSection('users');
+    } catch (error) {
+        authSystem.showAlert(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function adminUnblockUser(userId) {
+    const confirmed = await authSystem.showConfirm('Are you sure you want to unblock this user?', 'Unblock User', 'Unblock');
+    if (!confirmed) return;
+    try {
+        await apiService.unblockUser(userId);
+        authSystem.showAlert('User unblocked successfully.', 'success');
+        showDashboardSection('users');
+    } catch (error) {
+        authSystem.showAlert(`Error: ${error.message}`, 'error');
+    }
+}
+
+async function adminDeleteUser(userId) {
+    const confirmed = await authSystem.showConfirm('Are you sure you want to permanently delete this user? This action cannot be undone.', 'Delete User', 'Delete Permanently');
+    if (!confirmed) return;
+    try {
+        await apiService.deleteAdminUser(userId);
+        authSystem.showAlert('User deleted successfully.', 'success');
+        showDashboardSection('users');
+    } catch (error) {
+        authSystem.showAlert(`Error: ${error.message}`, 'error');
+    }
+}
+
+// Admin Settings Section with Email Configuration
+function getAdminSettingsSection() {
+    return `
+        <div class="admin-settings-section">
+            <div class="section-header" style="margin-bottom: 2rem;">
+                <h2 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
+                    <i class="fas fa-cog" style="color: #8b5cf6; margin-right: 0.75rem;"></i> Admin Settings
+                </h2>
+                <p style="color: #64748b; font-size: 1rem; margin: 0;">Configure system settings and email services</p>
+            </div>
+
+            <div class="settings-grid">
+                <!-- Email Configuration -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3><i class="fas fa-envelope"></i> Email Configuration</h3>
+                        <p>Configure SMTP settings for sending emails</p>
+                    </div>
+                    
+                    <form id="emailConfigForm" onsubmit="saveEmailConfig(event)" class="settings-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="smtpHost">SMTP Host</label>
+                                <input type="text" id="smtpHost" name="smtpHost" placeholder="smtp.gmail.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="smtpPort">SMTP Port</label>
+                                <input type="number" id="smtpPort" name="smtpPort" placeholder="587" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="smtpUsername">SMTP Username</label>
+                                <input type="email" id="smtpUsername" name="smtpUsername" placeholder="your-email@gmail.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="smtpPassword">SMTP Password</label>
+                                <input type="password" id="smtpPassword" name="smtpPassword" placeholder="App password" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="smtpFrom">From Email</label>
+                                <input type="email" id="smtpFrom" name="smtpFrom" placeholder="noreply@umukozi.com" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="smtpFromName">From Name</label>
+                                <input type="text" id="smtpFromName" name="smtpFromName" placeholder="Umukozi Team" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="smtpSecure">Use Secure Connection (TLS)</label>
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="smtpSecure" name="smtpSecure" checked>
+                                <label for="smtpSecure" class="checkbox-label">Enable TLS/SSL</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline" onclick="testEmailConfig()">
+                                <i class="fas fa-paper-plane"></i> Test Configuration
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Email Templates -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3><i class="fas fa-file-alt"></i> Email Templates</h3>
+                        <p>Manage email notification templates</p>
+                    </div>
+                    
+                    <div class="email-templates">
+                        <div class="template-item">
+                            <div class="template-info">
+                                <h4>Welcome Email</h4>
+                                <p>Sent to new users upon registration</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="editEmailTemplate('welcome')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                        
+                        <div class="template-item">
+                            <div class="template-info">
+                                <h4>Application Status</h4>
+                                <p>Notifies workers about application updates</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="editEmailTemplate('application')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                        
+                        <div class="template-item">
+                            <div class="template-info">
+                                <h4>Job Posted</h4>
+                                <p>Confirms job posting to employers</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="editEmailTemplate('job_posted')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                        
+                        <div class="template-item">
+                            <div class="template-info">
+                                <h4>Payment Confirmation</h4>
+                                <p>Sends payment receipts to workers</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" onclick="editEmailTemplate('payment')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Settings -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h3><i class="fas fa-sliders-h"></i> System Settings</h3>
+                        <p>General system configuration</p>
+                    </div>
+                    
+                    <form class="settings-form">
+                        <div class="form-group">
+                            <label for="siteName">Site Name</label>
+                            <input type="text" id="siteName" value="Umukozi" placeholder="Umukozi">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="siteUrl">Site URL</label>
+                            <input type="url" id="siteUrl" value="https://umukozi.com" placeholder="https://umukozi.com">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="adminEmail">Admin Email</label>
+                            <input type="email" id="adminEmail" placeholder="admin@umukozi.com">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="enableEmailNotifications">Enable Email Notifications</label>
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="enableEmailNotifications" checked>
+                                <label for="enableEmailNotifications" class="checkbox-label">Send email notifications to users</label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-primary" onclick="saveSystemSettings()">
+                                <i class="fas fa-save"></i> Save System Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Email Configuration Functions
+async function saveEmailConfig(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const emailConfig = {
+        smtpHost: formData.get('smtpHost'),
+        smtpPort: parseInt(formData.get('smtpPort')),
+        smtpUsername: formData.get('smtpUsername'),
+        smtpPassword: formData.get('smtpPassword'),
+        smtpFrom: formData.get('smtpFrom'),
+        smtpFromName: formData.get('smtpFromName'),
+        smtpSecure: formData.get('smtpSecure') === 'on'
+    };
+    
+    try {
+        const response = await apiService.saveEmailConfig(emailConfig);
+        authSystem.showAlert('Email configuration saved successfully!', 'success');
+    } catch (error) {
+        console.error('Error saving email config:', error);
+        authSystem.showAlert(`Failed to save email configuration: ${error.message}`, 'error');
+    }
+}
+
+async function testEmailConfig() {
+    const smtpHost = document.getElementById('smtpHost').value;
+    const smtpPort = document.getElementById('smtpPort').value;
+    const smtpUsername = document.getElementById('smtpUsername').value;
+    const smtpPassword = document.getElementById('smtpPassword').value;
+    const smtpFrom = document.getElementById('smtpFrom').value;
+    const smtpFromName = document.getElementById('smtpFromName').value;
+    const smtpSecure = document.getElementById('smtpSecure').checked;
+    
+    if (!smtpHost || !smtpPort || !smtpUsername || !smtpPassword || !smtpFrom) {
+        authSystem.showAlert('Please fill in all required email configuration fields', 'error');
+        return;
+    }
+    
+    try {
+        const testConfig = {
+            smtpHost,
+            smtpPort: parseInt(smtpPort),
+            smtpUsername,
+            smtpPassword,
+            smtpFrom,
+            smtpFromName,
+            smtpSecure
+        };
+        
+        const response = await apiService.testEmailConfig(testConfig);
+        authSystem.showAlert('Test email sent successfully! Please check your inbox.', 'success');
+    } catch (error) {
+        console.error('Error testing email config:', error);
+        authSystem.showAlert(`Failed to send test email: ${error.message}`, 'error');
+    }
+}
+
+function editEmailTemplate(templateType) {
+    // Placeholder for email template editing functionality
+    authSystem.showAlert(`Email template editor for "${templateType}" will be implemented soon.`, 'info');
+}
+
+async function saveSystemSettings() {
+    const siteName = document.getElementById('siteName').value;
+    const siteUrl = document.getElementById('siteUrl').value;
+    const adminEmail = document.getElementById('adminEmail').value;
+    const enableEmailNotifications = document.getElementById('enableEmailNotifications').checked;
+    
+    try {
+        const systemSettings = {
+            siteName,
+            siteUrl,
+            adminEmail,
+            enableEmailNotifications
+        };
+        
+        const response = await apiService.saveSystemSettings(systemSettings);
+        authSystem.showAlert('System settings saved successfully!', 'success');
+    } catch (error) {
+        console.error('Error saving system settings:', error);
+        authSystem.showAlert(`Failed to save system settings: ${error.message}`, 'error');
+    }
+}
+
+// Load existing admin settings
+async function loadAdminSettings() {
+    try {
+        // Load email configuration
+        const emailConfig = await apiService.getEmailConfig();
+        if (emailConfig) {
+            document.getElementById('smtpHost').value = emailConfig.smtp_host || '';
+            document.getElementById('smtpPort').value = emailConfig.smtp_port || 587;
+            document.getElementById('smtpUsername').value = emailConfig.smtp_username || '';
+            document.getElementById('smtpPassword').value = emailConfig.smtp_password || '';
+            document.getElementById('smtpFrom').value = emailConfig.smtp_from || '';
+            document.getElementById('smtpFromName').value = emailConfig.smtp_from_name || 'Umukozi Team';
+            document.getElementById('smtpSecure').checked = emailConfig.smtp_secure !== false;
+        }
+
+        // Load system settings
+        const systemSettings = await apiService.getSystemSettings();
+        if (systemSettings) {
+            document.getElementById('siteName').value = systemSettings.site_name || 'Umukozi';
+            document.getElementById('siteUrl').value = systemSettings.site_url || 'https://umukozi.com';
+            document.getElementById('adminEmail').value = systemSettings.admin_email || '';
+            document.getElementById('enableEmailNotifications').checked = systemSettings.enable_email_notifications !== false;
+        }
+    } catch (error) {
+        console.error('Error loading admin settings:', error);
+        // Don't show error to user on load, just log it
     }
 }

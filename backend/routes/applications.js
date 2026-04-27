@@ -21,6 +21,38 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+// Worker: Check application status for a specific job
+router.get('/check/:jobId', authenticateToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+    
+    // Check if worker has already applied for this job
+    const applicationCheck = await query(
+      'SELECT status FROM applications WHERE job_id = $1 AND worker_id = $2',
+      [jobId, req.user.userId]
+    );
+    
+    if (applicationCheck.rows.length > 0) {
+      return res.json({
+        status: applicationCheck.rows[0].status,
+        applied: true
+      });
+    } else {
+      return res.json({
+        status: null,
+        applied: false
+      });
+    }
+  } catch (error) {
+    console.error('Error checking application status:', error);
+    return res.status(500).json({ error: 'Failed to check application status' });
+  }
+});
+
 // Worker: Apply for a job
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -137,7 +169,7 @@ router.get('/worker/my-applications', authenticateToken, async (req, res) => {
        JOIN jobs j ON a.job_id = j.id
        JOIN users u ON j.employer_id = u.id
        WHERE a.worker_id = $1
-       ORDER BY a.applied_at DESC`,
+       ORDER BY a.created_at DESC`,
       [req.user.userId]
     );
 
@@ -174,7 +206,7 @@ router.get('/employer/job/:jobId', authenticateToken, async (req, res) => {
        JOIN users u ON a.worker_id = u.id
        LEFT JOIN worker_profiles wp ON u.id = wp.user_id
        WHERE a.job_id = $1
-       ORDER BY a.applied_at DESC`,
+       ORDER BY a.created_at DESC`,
       [jobId]
     );
 

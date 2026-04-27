@@ -1,40 +1,40 @@
 /**
  * Language Selector Controller
- * Handles language dropdown menu and language switching
+ * Handles language dropdown menu and language switching with Event Delegation
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    initLanguageSelector();
+    // Only initialize language selector on homepage, not on dashboard
+    if (document.getElementById('app') && !document.querySelector('.dashboard')) {
+        initLanguageSelector();
+    }
 });
 
 function initLanguageSelector() {
-    const langBtn = document.getElementById('langBtn');
-    const langMenu = document.getElementById('langMenu');
-    const langOptions = document.querySelectorAll('.lang-option');
-    const langDisplay = document.getElementById('langDisplay');
-
-    if (!langBtn || !langMenu) return;
-
-    // Toggle language menu
-    langBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        langMenu.classList.toggle('active');
-    });
-
-    // Close menu when clicking outside
+    // Dropdown toggle using delegation
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.language-selector')) {
+        const langBtn = e.target.closest('#langBtn');
+        const langMenu = document.getElementById('langMenu');
+        
+        if (langBtn && langMenu) {
+            e.stopPropagation();
+            langMenu.classList.toggle('active');
+        } else if (langMenu && !e.target.closest('.language-selector')) {
+            // Close if clicking outside
             langMenu.classList.remove('active');
         }
     });
 
-    // Language option click handler
-    langOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const langCode = this.getAttribute('data-lang');
+    // Language option selection using delegation
+    document.addEventListener('click', function(e) {
+        const option = e.target.closest('.lang-option');
+        if (option) {
+            const langCode = option.getAttribute('data-lang');
+            const langMenu = document.getElementById('langMenu');
+            
             changeLanguage(langCode);
-            langMenu.classList.remove('active');
-        });
+            if (langMenu) langMenu.classList.remove('active');
+        }
     });
 
     // Update display with current language
@@ -42,45 +42,43 @@ function initLanguageSelector() {
 }
 
 function changeLanguage(langCode) {
-    // Set language in i18n instance
-    i18nInstance.setLanguage(langCode);
+    console.log('=== LANGUAGE CHANGE ATTEMPT ===', langCode);
     
-    // Update display
-    updateLanguageDisplay();
-    
-    // Send to backend for session persistence
-    fetch('/api/language', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ language: langCode })
-    }).catch(err => console.log('Language update to backend:', err));
+    try {
+        if (typeof i18nInstance !== 'undefined') {
+            i18nInstance.setLanguage(langCode);
+            updateLanguageDisplay();
+            
+            // Persist to backend if needed
+            fetch('/api/language', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language: langCode })
+            }).catch(() => {});
+        }
+    } catch (error) {
+        console.error('Error changing language:', error);
+    }
 }
 
 function updateLanguageDisplay() {
     const langDisplay = document.getElementById('langDisplay');
-    if (langDisplay) {
+    if (langDisplay && typeof i18nInstance !== 'undefined') {
         const currentLang = i18nInstance.getLanguage();
-        const langMap = {
-            'en': 'EN',
-            'fr': 'FR',
-            'rw': 'RW'
-        };
+        const langMap = { 'en': 'EN', 'fr': 'FR', 'rw': 'RW' };
         langDisplay.textContent = langMap[currentLang] || 'EN';
+        
+        // Update active state in menu
+        document.querySelectorAll('.lang-option').forEach(option => {
+            option.classList.toggle('active', option.getAttribute('data-lang') === currentLang);
+        });
     }
-
-    // Highlight active language option
-    document.querySelectorAll('.lang-option').forEach(option => {
-        option.classList.remove('active');
-        if (option.getAttribute('data-lang') === i18nInstance.getLanguage()) {
-            option.classList.add('active');
-        }
-    });
 }
 
-// Listen for language change events
-window.addEventListener('languageChanged', function(e) {
-    console.log('Language changed to:', e.detail.language);
-    // You can add additional logic here for language-specific actions
+// Global helper to refresh display (useful when switching dashboards)
+window.refreshLanguageUI = updateLanguageDisplay;
+
+// Listen for custom events
+window.addEventListener('languageChanged', () => {
+    updateLanguageDisplay();
 });

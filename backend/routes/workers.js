@@ -407,7 +407,7 @@ router.get('/search', async (req, res) => {
     const workersQuery = `
       SELECT 
         u.id, u.name, u.email, u.phone,
-        wp.national_id, wp.profile_photo, wp.id_photo, wp.location, wp.availability,
+        wp.national_id, wp.profile_photo, wp.location, wp.availability,
         wp.expected_salary, wp.experience_years, wp.skills, wp.is_verified,
         wp.recommendation1_name, wp.recommendation1_phone,
         wp.recommendation2_name, wp.recommendation2_phone
@@ -485,7 +485,7 @@ router.get('/:id', async (req, res) => {
     const result = await query(
       `SELECT 
         u.id, u.name, u.email, u.phone,
-        wp.national_id, wp.profile_photo, wp.id_photo, wp.location, wp.availability,
+        wp.national_id, wp.profile_photo, wp.location, wp.availability,
         wp.expected_salary, wp.experience_years, wp.skills, wp.is_verified,
         wp.recommendation1_name, wp.recommendation1_phone,
         wp.recommendation2_name, wp.recommendation2_phone,

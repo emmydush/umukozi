@@ -1,7 +1,7 @@
 // API Service for connecting to backend
 class ApiService {
     constructor() {
-        this.baseURL = 'http://localhost:3001/api';
+        this.baseURL = `http://${window.location.hostname}:3001/api`;
     }
 
     // Get current token from storage
@@ -189,12 +189,17 @@ class ApiService {
         return await this.request('/jobs/employer/my-jobs');
     }
 
-    // Application methods
+    // Worker: Apply for a job
     async applyForJob(jobId, coverLetter = '') {
         return await this.request('/applications', {
             method: 'POST',
             body: JSON.stringify({ jobId, coverLetter })
         });
+    }
+
+    // Check application status for a specific job
+    async checkApplicationStatus(jobId) {
+        return await this.request(`/applications/check/${jobId}`);
     }
 
     async getMyApplications() {
@@ -213,7 +218,60 @@ class ApiService {
     }
 
     async updateApplicationStatus(id, status) {
-        return await this.request(`/applications/${id}/status`, {
+        console.log('=== API: UPDATING APPLICATION STATUS ===');
+        console.log('Application ID:', id);
+        console.log('Status:', status);
+        console.log('Request body:', JSON.stringify({ status }));
+        
+        try {
+            const response = await this.request(`/applications/${id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status })
+            });
+            console.log('API response:', response);
+            return response;
+        } catch (error) {
+            console.error('API error in updateApplicationStatus:', error);
+            throw error;
+        }
+    }
+
+    // Payment methods
+    async checkPayment(workerId) {
+        return await this.request(`/payments/check/${workerId}`);
+    }
+
+    async submitPayment(paymentData) {
+        return await this.request('/payments/submit', {
+            method: 'POST',
+            body: JSON.stringify(paymentData)
+        });
+    }
+
+    // Admin methods
+    async getAdminStats() {
+        return await this.request('/admin/stats');
+    }
+
+    async getAdminWorkers(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return await this.request(`/admin/workers?${queryString}`);
+    }
+
+    async verifyWorker(id, isVerified) {
+        return await this.request(`/admin/workers/${id}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({ is_verified: isVerified })
+        });
+    }
+
+    async getAdminPayments(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return await this.request(`/admin/payments?${queryString}`);
+    }
+
+    async verifyPaymentById(id, status) {
+        return await this.request(`/admin/payments/${id}/verify`, {
             method: 'PUT',
             body: JSON.stringify({ status })
         });
@@ -222,6 +280,60 @@ class ApiService {
     // Health check
     async healthCheck() {
         return await this.request('/health');
+    }
+
+    async getAdminUsers(params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        return await this.request(`/admin/users?${queryString}`);
+    }
+
+    async blockUser(id) {
+        return await this.request(`/admin/users/${id}/block`, {
+            method: 'PUT',
+            body: JSON.stringify({ reason: 'Admin action' })
+        });
+    }
+
+    async unblockUser(id) {
+        return await this.request(`/admin/users/${id}/unblock`, {
+            method: 'PUT'
+        });
+    }
+
+    async deleteAdminUser(id) {
+        return await this.request(`/admin/users/${id}`, {
+            method: 'DELETE'
+        });
+    }
+
+    // Email configuration methods
+    async getEmailConfig() {
+        return await this.request('/admin/email/config');
+    }
+
+    async saveEmailConfig(emailConfig) {
+        return await this.request('/admin/email/config', {
+            method: 'POST',
+            body: JSON.stringify(emailConfig)
+        });
+    }
+
+    async testEmailConfig(emailConfig) {
+        return await this.request('/admin/email/test', {
+            method: 'POST',
+            body: JSON.stringify(emailConfig)
+        });
+    }
+
+    async saveSystemSettings(systemSettings) {
+        return await this.request('/admin/settings', {
+            method: 'POST',
+            body: JSON.stringify(systemSettings)
+        });
+    }
+
+    async getSystemSettings() {
+        return await this.request('/admin/settings');
     }
 }
 

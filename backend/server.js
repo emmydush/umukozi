@@ -13,6 +13,8 @@ const messageRoutes = require('./routes/messages');
 const reviewRoutes = require('./routes/reviews');
 const uploadRoutes = require('./routes/upload');
 const languageRoutes = require('./routes/language');
+const paymentRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,6 +68,7 @@ app.get('/', (req, res) => {
       reviews: '/api/reviews',
       upload: '/api/upload',
       language: '/api/language',
+      payments: '/api/payments',
       health: '/api/health'
     }
   });
@@ -81,6 +84,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/language', languageRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
