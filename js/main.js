@@ -237,6 +237,9 @@ function showLogin() {
                 <img src="images/logo.png" alt="Umukozi" class="logo-img">
             </div>
             <h2 data-i18n="auth.login">Login</h2>
+            <p class="auth-message" style="text-align: center; color: #64748b; font-size: 0.875rem; margin-bottom: 1.5rem;">
+                Welcome back! Sign in to access your account and connect with opportunities.
+            </p>
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <div class="form-group">
                     <label for="loginEmail" data-i18n="auth.email">Email</label>
@@ -269,6 +272,9 @@ function showRegister() {
                 <img src="images/logo.png" alt="Umukozi" class="logo-img">
             </div>
             <h2 data-i18n="auth.register">Register</h2>
+            <p class="auth-message" style="text-align: center; color: #64748b; font-size: 0.875rem; margin-bottom: 1.5rem;">
+                Join our community! Create an account to find opportunities or hire trusted workers.
+            </p>
             <form id="registerForm" onsubmit="handleRegister(event)">
                 <div class="form-row">
                     <div class="form-group">
@@ -939,22 +945,29 @@ async function getEmployerApplicationsSection() {
                     <div class="app-item-modern employer-view">
                         <div class="aim-worker">
                             <div class="aim-avatar-wrap">
-                                <img src="${authSystem.getImageUrl(app.profile_photo)}" class="aim-avatar">
+                                <img src="${authSystem.getImageUrl(app.profile_photo) || 'https://via.placeholder.com/60'}" class="aim-avatar">
+                                ${app.id_photo ? '<div class="aim-id-badge"><i class="fas fa-id-card"></i></div>' : ''}
                             </div>
                             <div class="aim-details">
-                                <h3>${app.worker_name}</h3>
+                                <div class="aim-name-row">
+                                    <h3>${app.worker_name}</h3>
+                                    ${app.id_photo ? '<span class="id-verif-pill"><i class="fas fa-check-circle"></i> ID Provided</span>' : ''}
+                                </div>
                                 <p class="aim-job-ref"><i class="fas fa-briefcase"></i> Applied for: <strong>${app.job_title}</strong></p>
-                                <p><i class="fas fa-envelope"></i> ${app.worker_email} | <i class="fas fa-phone"></i> ${app.worker_phone}</p>
+                                <p><i class="fas fa-envelope"></i> ${app.worker_email}</p>
                                 <div class="aim-skills">
-                                    ${(app.skills || '').split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).join('')}
+                                    ${(app.skills || '').split(',').map(s => `<span class="skill-tag">${s.trim()}</span>`).filter(Boolean).join('')}
                                 </div>
                             </div>
                         </div>
                         <div class="aim-actions">
                             <span class="app-status-badge status-${app.status}">${app.status.toUpperCase()}</span>
                             <div class="aim-btns">
-                                <button class="btn btn-success btn-sm" onclick="updateAppStatus('${app.id}', 'accepted')">Accept</button>
-                                <button class="btn btn-danger btn-sm" onclick="updateAppStatus('${app.id}', 'rejected')">Decline</button>
+                                <button class="btn btn-outline btn-sm" onclick="authSystem.viewWorkerProfile('${app.worker_id}')"><i class="fas fa-user-circle"></i> Profile & ID</button>
+                                <div class="btn-group-mini">
+                                    <button class="btn btn-success btn-xs" onclick="updateAppStatus('${app.id}', 'accepted')"><i class="fas fa-check"></i></button>
+                                    <button class="btn btn-danger btn-xs" onclick="updateAppStatus('${app.id}', 'rejected')"><i class="fas fa-times"></i></button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1919,7 +1932,7 @@ async function testEmailConfig() {
         };
         
         const response = await apiService.testEmailConfig(testConfig);
-        authSystem.showAlert('Test email sent successfully! Please check your inbox.', 'success');
+        authSystem.showAlert(response.message || 'Test email sent successfully! Please check your inbox.', 'success');
     } catch (error) {
         console.error('Error testing email config:', error);
         authSystem.showAlert(`Failed to send test email: ${error.message}`, 'error');

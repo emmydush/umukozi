@@ -1858,7 +1858,6 @@ class AuthSystem {
                         ${this.generateStatusBadge(worker)}
                     </div>
                     <div class="profile-header">
-                        <img src="${getImageUrl(worker.profile_photo) || 'https://picsum.photos/seed/worker' + worker.id + '/120/120.jpg'}" alt="${worker.name}" class="profile-avatar">
                         <div class="profile-info">
                             <h3>${worker.name}</h3>
                             <div class="contact-lock-box ${isUnlocked ? 'unlocked' : 'locked'}">
@@ -1875,6 +1874,33 @@ class AuthSystem {
                             <p><i class="fas fa-money-bill"></i> RWF ${worker.expected_salary}/month</p>
                         </div>
                     </div>
+
+                    <!-- Identity Matching Section -->
+                    <div class="identity-matching">
+                        <h4>Identity Verification</h4>
+                        <div class="identity-grid">
+                            <div class="id-item">
+                                <label>Profile Photo</label>
+                                <div class="id-img-frame">
+                                    <img src="${worker.profile_photo ? getImageUrl(worker.profile_photo) : 'https://picsum.photos/seed/worker' + worker.id + '/120/120.jpg'}" alt="Profile">
+                                </div>
+                            </div>
+                            <div class="id-item">
+                                <label>National ID Photo</label>
+                                <div class="id-img-frame">
+                                    ${worker.id_photo ? `
+                                        <img src="${getImageUrl(worker.id_photo)}" alt="National ID" onerror="this.onerror=null; this.src='https://via.placeholder.com/200x120?text=ID+Photo+Error'">
+                                    ` : `
+                                        <div class="id-photo-placeholder">
+                                            <i class="fas fa-id-card"></i>
+                                            <p>No ID Photo</p>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                        <p class="id-help-text te-muted small"><i class="fas fa-info-circle"></i> Compare the profile photo with the ID document to verify this worker's identity.</p>
+                    </div>
                     
                     <div class="profile-details">
                         <h4>Experience & Skills</h4>
@@ -1884,26 +1910,6 @@ class AuthSystem {
                         <h4>Recommendations</h4>
                         <p><strong>Reference 1:</strong> ${worker.recommendation1_name} - ${worker.recommendation1_phone}</p>
                         <p><strong>Reference 2:</strong> ${worker.recommendation2_name} - ${worker.recommendation2_phone}</p>
-                        
-                        <h4>National ID</h4>
-                        <p><strong>ID Number:</strong> ${worker.national_id}</p>
-                        ${worker.id_photo && worker.id_photo !== null && worker.id_photo !== '' ? `
-                            <div class="id-photo-container">
-                                <label><i class="fas fa-id-card"></i> Verified ID Document:</label>
-                                <div class="id-photo-wrapper">
-                                    <img src="${this.getImageUrl(worker.id_photo)}" alt="National ID" class="id-photo-preview" 
-                                         onerror="this.style.display='none';this.nextElementSibling.style.display='block'; console.error('Failed to load ID photo:', this.src)">
-                                    <div class="id-photo-error" style="display:none">
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                        <p>ID photo could not be loaded</p>
-                                        <small>Please contact support if this issue persists</small>
-                                    </div>
-                                </div>
-                                <button class="btn btn-outline btn-sm" onclick="window.open('${this.getImageUrl(worker.id_photo)}', '_blank')">
-                                    <i class="fas fa-expand"></i> View Full Size
-                                </button>
-                            </div>
-                        ` : '<p class="no-photo"><i class="fas fa-info-circle"></i> ID photo not uploaded or verified.</p>'}
                     </div>
                     
                     <button class="btn btn-primary" onclick="authSystem.contactWorker('${worker.id}')">

@@ -1,6 +1,7 @@
 const express = require('express');
 const { query, run } = require('../config/database');
 const jwt = require('jsonwebtoken');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
@@ -30,11 +31,16 @@ router.use(authenticateAdmin);
 // Dashboard Statistics
 router.get('/stats', async (req, res) => {
   try {
-    const workers = await query('SELECT count(*) as count FROM users WHERE user_type = "worker"');
-    const employers = await query('SELECT count(*) as count FROM users WHERE user_type = "employer"');
-    const pending_workers = await query('SELECT count(*) as count FROM worker_profiles WHERE is_verified = 0');
+    const workers = await query('SELECT count(*) as count FROM users WHERE user_type = \'worker\'');
+    const employers = await query('SELECT count(*) as count FROM users WHERE user_type = \'employer\'');
+    const pending_workers = await query(`
+      SELECT count(*) as count 
+      FROM users u 
+      LEFT JOIN worker_profiles wp ON u.id = wp.user_id 
+      WHERE u.user_type = 'worker' AND (wp.is_verified = 0 OR wp.is_verified IS NULL)
+    `);
     const total_jobs = await query('SELECT count(*) as count FROM jobs');
-    const pending_payments = await query('SELECT count(*) as count FROM payments WHERE status = "pending"');
+    const pending_payments = await query('SELECT count(*) as count FROM payments WHERE status = \'pending\'');
     
     const stats = {
       workers: workers.rows[0].count,
@@ -44,6 +50,7 @@ router.get('/stats', async (req, res) => {
       pending_payments: pending_payments.rows[0].count
     };
     
+    console.log('Admin Stats:', stats);
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -55,15 +62,16 @@ router.get('/workers', async (req, res) => {
   try {
     const { status } = req.query; // pending or verified
     let sql = `
-      SELECT u.*, wp.is_verified, wp.skills, wp.experience, wp.availability, 
-             wp.expected_salary, wp.profile_photo
+      SELECT u.*, wp.is_verified, wp.skills, wp.experience_years, wp.availability, 
+             wp.expected_salary, wp.profile_photo, wp.national_id, wp.id_photo
       FROM users u
       LEFT JOIN worker_profiles wp ON u.id = wp.user_id
-      WHERE u.user_type = "worker"
+      WHERE u.user_type = 'worker'
     `;
     
     if (status === 'pending') {
-      sql += ' AND wp.is_verified = 0';
+      // Pending includes both verified=0 and those who haven't completed a profile yet (NULL)
+      sql += ' AND (wp.is_verified = 0 OR wp.is_verified IS NULL)';
     } else if (status === 'verified') {
       sql += ' AND wp.is_verified = 1';
     }
@@ -71,7 +79,8 @@ router.get('/workers', async (req, res) => {
     sql += ' ORDER BY u.created_at DESC';
     
     const result = await query(sql);
-    res.json(result.rows);
+    console.log(`Found ${result.rows.length} workers with status filter: ${status || 'all'}`);
+    res.json({ workers: result.rows });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch workers' });
   }
@@ -87,6 +96,17 @@ router.put('/workers/:id/verify', async (req, res) => {
       'UPDATE worker_profiles SET is_verified = ?, verification_date = datetime("now") WHERE user_id = ?',
       [is_verified ? 1 : 0, id]
     );
+
+    // Get user details for email notification
+    const userResult = await query('SELECT name, email FROM users WHERE id = ?', [id]);
+    if (userResult.rows.length > 0) {
+      const user = userResult.rows[0];
+      // Send verification status email (async, don't wait for it)
+      emailService.sendWorkerVerificationEmail(user.email, user.name, is_verified).catch(error => {
+        console.error('Failed to send verification notification email:', error);
+      });
+    }
+
     res.json({ success: true, message: is_verified ? 'Worker verified' : 'Worker unverified' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update worker verification' });
@@ -138,6 +158,22 @@ router.put('/payments/:id/verify', async (req, res) => {
       return res.status(404).json({ error: 'Payment not found' });
     }
 
+    // Get payment and user details for email notification
+    const paymentResult = await query(`
+      SELECT p.*, u.name, u.email 
+      FROM payments p 
+      JOIN users u ON p.employer_id = u.id 
+      WHERE p.id = ?
+    `, [id]);
+
+    if (paymentResult.rows.length > 0) {
+      const payment = paymentResult.rows[0];
+      // Send payment status email (async, don't wait for it)
+      emailService.sendPaymentStatusEmail(payment.email, payment.name, payment, status).catch(error => {
+        console.error('Failed to send payment status email:', error);
+      });
+    }
+
     res.json({ success: true, message: `Payment marked as ${status}` });
   } catch (error) {
     res.status(500).json({ error: 'Failed to verify payment' });
@@ -155,7 +191,7 @@ router.get('/users', async (req, res) => {
     `;
     
     if (user_type) {
-      sql += ` AND user_type = "${user_type}"`;
+      sql += ` AND user_type = '${user_type}'`;
     }
     
     if (status === 'active') {
@@ -195,6 +231,16 @@ router.put('/users/:id/block', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get user details for email notification
+    const userResult = await query('SELECT name, email FROM users WHERE id = ?', [id]);
+    if (userResult.rows.length > 0) {
+      const user = userResult.rows[0];
+      // Send block notification email (async, don't wait for it)
+      emailService.sendUserBlockedEmail(user.email, user.name, reason).catch(error => {
+        console.error('Failed to send block notification email:', error);
+      });
+    }
+
     res.json({ 
       success: true, 
       message: 'User blocked successfully',
@@ -218,6 +264,16 @@ router.put('/users/:id/unblock', async (req, res) => {
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user details for email notification
+    const userResult = await query('SELECT name, email FROM users WHERE id = ?', [id]);
+    if (userResult.rows.length > 0) {
+      const user = userResult.rows[0];
+      // Send unblock notification email (async, don't wait for it)
+      emailService.sendUserUnblockedEmail(user.email, user.name).catch(error => {
+        console.error('Failed to send unblock notification email:', error);
+      });
     }
 
     res.json({ 
@@ -335,6 +391,9 @@ router.post('/email/config', async (req, res) => {
       `, [smtpHost, smtpPort, smtpUsername, smtpPassword, smtpFrom, smtpFromName, smtpSecure ? 1 : 0]);
     }
 
+    // Reload email service with new configuration
+    await emailService.reloadConfig().catch(err => console.error('Failed to reload email service:', err));
+
     res.json({ success: true, message: 'Email configuration saved successfully' });
   } catch (error) {
     console.error('Failed to save email config:', error);
@@ -357,48 +416,92 @@ router.post('/email/test', async (req, res) => {
     // Create nodemailer transporter for testing
     const nodemailer = require('nodemailer');
     
-    const transporter = nodemailer.createTransporter({
+    console.log('=== EMAIL TEST CONFIGURATION ===');
+    console.log('SMTP Host:', smtpHost);
+    console.log('SMTP Port:', smtpPort);
+    console.log('SMTP Username:', smtpUsername);
+    console.log('From Email:', smtpFrom);
+    console.log('Secure:', smtpSecure);
+    
+    const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
       secure: smtpSecure,
+      tls: {
+        rejectUnauthorized: false
+      },
       auth: {
         user: smtpUsername,
         pass: smtpPassword
-      }
+      },
+      debug: true,
+      logger: true
     });
 
+    // Verify connection configuration
+    console.log('=== VERIFYING SMTP CONNECTION ===');
+    await transporter.verify();
+    console.log('SMTP connection verified successfully');
+
     // Send test email
-    await transporter.sendMail({
+    console.log('=== SENDING TEST EMAIL ===');
+    const info = await transporter.sendMail({
       from: `"${smtpFromName}" <${smtpFrom}>`,
-      to: smtpFrom, // Send to the from address for testing
+      to: [smtpFrom, smtpUsername], // Send to both as an array
+      replyTo: smtpUsername,
       subject: 'Umukozi Email Configuration Test',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #8b5cf6;">Email Configuration Test</h2>
-          <p>This is a test email to confirm that your SMTP configuration is working correctly.</p>
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3>Configuration Details:</h3>
-            <ul>
-              <li><strong>SMTP Host:</strong> ${smtpHost}</li>
-              <li><strong>SMTP Port:</strong> ${smtpPort}</li>
-              <li><strong>From Email:</strong> ${smtpFrom}</li>
-              <li><strong>Secure Connection:</strong> ${smtpSecure ? 'Enabled' : 'Disabled'}</li>
-            </ul>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background: #8b5cf6; padding: 30px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 24px;">Umukozi Email Test</h1>
           </div>
-          <p>If you received this email, your email configuration is working properly!</p>
-          <p style="color: #6b7280; font-size: 14px;">
-            Sent from Umukozi Admin Panel at ${new Date().toLocaleString()}
-          </p>
+          <div style="padding: 30px; background: white;">
+            <h2 style="color: #1e293b; margin-top: 0;">Configuration Working!</h2>
+            <p style="color: #64748b; line-height: 1.6;">
+              This is a test email to confirm that your SMTP configuration is working correctly on the Umukozi platform.
+            </p>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #f1f5f9;">
+              <h3 style="color: #475569; margin-top: 0; font-size: 16px;">Verified Details:</h3>
+              <ul style="color: #64748b; font-size: 14px; margin-bottom: 0;">
+                <li><strong>SMTP Host:</strong> ${smtpHost}</li>
+                <li><strong>SMTP Port:</strong> ${smtpPort}</li>
+                <li><strong>Auth User:</strong> ${smtpUsername}</li>
+                <li><strong>From Email:</strong> ${smtpFrom}</li>
+              </ul>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">
+              If you received this in your inbox, you are all set to send notifications to workers and employers.
+            </p>
+          </div>
+          <div style="background: #f1f5f9; padding: 20px; text-align: center; color: #94a3b8; font-size: 12px;">
+            <p style="margin: 0;">Sent from Umukozi Admin Panel at ${new Date().toLocaleString()}</p>
+          </div>
         </div>
       `
     });
+    
+    console.log('=== EMAIL SENT SUCCESSFULLY ===');
+    console.log('Message ID:', info.messageId);
+    console.log('Response:', info.response);
 
-    res.json({ success: true, message: 'Test email sent successfully' });
+    res.json({ 
+      success: true, 
+      message: `Test email sent successfully to ${smtpFrom}${smtpFrom !== smtpUsername ? ' and ' + smtpUsername : ''}. Please check your inbox.` 
+    });
   } catch (error) {
     console.error('Failed to send test email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+      smtp: error.smtp
+    });
     res.status(500).json({ 
       error: 'Failed to send test email', 
-      details: error.message 
+      details: error.message,
+      code: error.code || 'UNKNOWN'
     });
   }
 });

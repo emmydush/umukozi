@@ -1591,6 +1591,88 @@ body {
     margin-bottom: 0.25rem;
 }
 
+/* Identity Matching Section */
+.identity-matching {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 1.5rem 0 2rem;
+    border: 1px solid #e2e8f0;
+}
+
+.identity-matching h4 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    color: #1e293b;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.identity-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.id-item label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.id-img-frame {
+    width: 100%;
+    aspect-ratio: 3/2;
+    background: #f1f5f9;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid white;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.id-img-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.id-img-frame:hover img {
+    transform: scale(1.05);
+}
+
+.id-photo-placeholder {
+    text-align: center;
+    color: #94a3b8;
+}
+
+.id-photo-placeholder i {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.id-help-text {
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+    .identity-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
 /* Loading Spinner */
 .loading {
     display: inline-block;
@@ -2144,6 +2226,57 @@ body {
     .jfb-select {
         width: 100%;
     }
+}
+
+/* Applicant Inbox ID Badges */
+.aim-avatar-wrap {
+    position: relative;
+}
+
+.aim-id-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #2563eb;
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    border: 2px solid white;
+}
+
+.aim-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.id-verif-pill {
+    background: #f0fdf4;
+    color: #16a34a;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid #bcf0da;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-group-mini {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.btn-xs {
+    padding: 4px 8px;
+    font-size: 0.75rem;
 }
 
 /* =========================================

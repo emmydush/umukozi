@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
@@ -201,7 +202,7 @@ router.get('/employer/job/:jobId', authenticateToken, async (req, res) => {
 
     const result = await query(
       `SELECT a.*, u.name as worker_name, u.email as worker_email, u.phone as worker_phone,
-              wp.skills, wp.experience_years, wp.profile_photo
+              wp.skills, wp.experience_years, wp.profile_photo, wp.id_photo
        FROM applications a
        JOIN users u ON a.worker_id = u.id
        LEFT JOIN worker_profiles wp ON u.id = wp.user_id
@@ -247,14 +248,45 @@ router.put('/:id/status', authenticateToken, async (req, res) => {
     const result = await query(
       `UPDATE applications 
        SET status = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING *`,
+       WHERE id = $2 RETURNING *`,
       [status, id]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Application not found or unauthorized' });
+    }
+
+    const application = result.rows[0];
+
+    // Get application details for email notification
+    const appDetails = await query(`
+      SELECT a.*, u.name as worker_name, u.email as worker_email, 
+             j.title as job_title, u2.name as employer_name
+      FROM applications a
+      JOIN users u ON a.worker_id = u.id
+      JOIN jobs j ON a.job_id = j.id
+      JOIN users u2 ON j.employer_id = u2.id
+      WHERE a.id = $1
+    `, [id]);
+
+    if (appDetails.rows.length > 0) {
+      const details = appDetails.rows[0];
+      // Send application status email (async, don't wait for it)
+      emailService.sendApplicationStatusEmail(
+        details.worker_email, 
+        details.worker_name, 
+        details.job_title, 
+        details.employer_name, 
+        status
+      ).catch(error => {
+        console.error('Failed to send application status email:', error);
+      });
+    }
+
     res.json({
+      success: true,
       message: 'Application status updated successfully',
-      application: result.rows[0]
+      application: application
     });
 
   } catch (error) {

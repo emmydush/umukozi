@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const emailService = require('../services/emailService');
 
 const router = express.Router();
 
@@ -54,6 +55,11 @@ router.post('/register', async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE }
     );
 
+    // Send welcome email (async, don't wait for it)
+    emailService.sendWelcomeEmail(email, name, userType).catch(error => {
+      console.error('Failed to send welcome email:', error);
+    });
+
     res.status(201).json({
       message: 'User registered successfully',
       token,
@@ -81,10 +87,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user
+    // Find user with profile photo for workers
     const result = await query(
-      `SELECT id, name, email, phone, password, user_type, profile_complete 
-       FROM users WHERE email = $1`,
+      `SELECT u.id, u.name, u.email, u.phone, u.password, u.user_type, u.profile_complete, wp.profile_photo
+       FROM users u 
+       LEFT JOIN worker_profiles wp ON u.id = wp.user_id 
+       WHERE u.email = $1`,
       [email]
     );
 
@@ -116,7 +124,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         userType: user.user_type,
-        profileComplete: user.profile_complete
+        profileComplete: user.profile_complete,
+        profilePhoto: user.profile_photo
       }
     });
 
