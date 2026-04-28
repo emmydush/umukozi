@@ -17,7 +17,7 @@ const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Initialize i18n
 const i18n = new I18nBackend();

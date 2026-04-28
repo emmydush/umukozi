@@ -1,7 +1,7 @@
 // API Service for connecting to backend
 class ApiService {
     constructor() {
-        this.baseURL = `http://${window.location.hostname}:3001/api`;
+        this.baseURL = `http://${window.location.hostname}:3002/api`;
     }
 
     // Get current token from storage
@@ -46,7 +46,7 @@ class ApiService {
             return await response.json();
         } catch (error) {
             if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                throw new Error('Backend server is not available. Please ensure the backend is running on port 3001.');
+                throw new Error('Backend server is not available. Please ensure the backend is running on port 3002.');
             }
             throw error;
         }

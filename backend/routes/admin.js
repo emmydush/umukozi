@@ -92,10 +92,19 @@ router.put('/workers/:id/verify', async (req, res) => {
     const { id } = req.params;
     const { is_verified } = req.body;
     
-    await run(
+    const updateResult = await run(
       'UPDATE worker_profiles SET is_verified = ?, verification_date = datetime("now") WHERE user_id = ?',
       [is_verified ? 1 : 0, id]
     );
+
+    if (updateResult.changes === 0) {
+      return res.status(404).json({ 
+        error: 'Worker profile not found', 
+        message: 'This worker has registered but has not yet completed their profile details (skills, location, etc.). Verification can only be completed once the profile is created.' 
+      });
+    }
+
+    console.log(`Worker ${id} verification set to ${is_verified}`);
 
     // Get user details for email notification
     const userResult = await query('SELECT name, email FROM users WHERE id = ?', [id]);

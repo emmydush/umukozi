@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="common.umukozi">Umukozi - Connect Household Workers with Employers</title>
     <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="manifest" href="public/manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -142,5 +144,12 @@
     <script src="js/main.js"></script>
     <script src="js/language-selector.js"></script>
     <script src="js/test-connection.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/public/sw.js')
+                .then(registration => console.log('SW registered:', registration))
+                .catch(error => console.log('SW registration failed:', error));
+        }
+    </script>
 </body>
 </html>

@@ -12,7 +12,7 @@ class AuthSystem {
         
         // Ensure path starts with a slash
         const path = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
-        return `http://${window.location.hostname}:3001${path}`;
+        return `http://${window.location.hostname}:3002${path}`;
     }
 
     // Load user profile photo
@@ -39,8 +39,8 @@ class AuthSystem {
                 }
                 
                 // Set default profile photo for admin
-                this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
-                console.log('Admin profile photo set to default:', this.currentUser.profile_photo);
+                this.currentUser.profile_photo = null; // Use default avatar
+                console.log('Admin profile photo set to default (null)');
                 this.updateProfilePhotoInUI();
                 return;
             }
@@ -61,13 +61,13 @@ class AuthSystem {
                 // For employers, we might need a different endpoint or set default
                 console.log('Employer profile photo loading not implemented yet');
                 // Set a default for now
-                this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
+                this.currentUser.profile_photo = null; // Use default avatar
                 this.updateProfilePhotoInUI();
             }
         } catch (error) {
             console.warn('Failed to load user profile photo:', error);
             // Set default profile photo on error
-            this.currentUser.profile_photo = '/uploads/profile-1777297520634-634090700.jpg';
+            this.currentUser.profile_photo = null; // Use default avatar
             this.updateProfilePhotoInUI();
         }
     }
@@ -110,11 +110,11 @@ class AuthSystem {
     }
 
     // Debug function to manually set profile photo (call from browser console)
-    debugSetProfilePhoto(photoUrl = '/uploads/profile-1777297520634-634090700.jpg') {
+    debugSetProfilePhoto(photoUrl = null) {
         console.log('=== DEBUG: Setting profile photo manually ===');
         this.currentUser.profile_photo = photoUrl;
         this.updateProfilePhotoInUI();
-        console.log('Profile photo set to:', photoUrl);
+        console.log('Profile photo set to:', photoUrl || 'default avatar');
     }
 
     // Worker status helper function
